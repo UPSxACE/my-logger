@@ -8,6 +8,9 @@ import (
 
 func (s *Server) setRoutes(devMode bool) {
 	// SECTION - Public Routes
+	s.router.GET("api/internal/owner-registered", func(c echo.Context) error {
+		return c.JSON(200, s.internal.ownerRegistered)
+	})
 	// ANCHOR - Index
 	s.router.GET("/ping", func(c echo.Context) error {
 		return c.JSON(200, "pong")
@@ -18,6 +21,9 @@ func (s *Server) setRoutes(devMode bool) {
 	// ANCHOR - Auth
 	routeIndexGuest.POST("/login", s.postLoginRoute)
 	routeIndexGuest.POST("/register", s.postRegisterRoute)
+	routeIndexGuest.POST("/confirm-email", s.postConfirmEmailRoute)
+	routeIndexGuest.POST("/forgot-password", s.postForgotPasswordRoute)
+	routeIndexGuest.POST("/recover-account", s.postRecoverAccountRoute)
 
 	// SECTION - Private Routes
 	routeIndexPrivate := s.router.Group("/api", s.jwtMiddleware)

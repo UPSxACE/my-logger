@@ -5,7 +5,7 @@ import axios from "axios";
 
 export default function TestRequest() {
   function handleRequest() {
-    axios.get("http://localhost:1323/api/test", {
+    axios.get(process.env.NEXT_PUBLIC_API_URL + "/api/test", {
       withCredentials: true,
     });
   }

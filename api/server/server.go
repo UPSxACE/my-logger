@@ -1,8 +1,7 @@
 package server
 
 import (
-	"context"
-	"fmt"
+	"html/template"
 	"os"
 
 	"github.com/UPSxACE/my-logger/api/db"
@@ -10,7 +9,6 @@ import (
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Server struct {
@@ -19,6 +17,8 @@ type Server struct {
 	jwtConfig      echojwt.Config
 	Collections    db.Collections
 	validator      *validator.Validate // use a single instance of Validate, it caches struct info
+	internal       InternalState
+	emailTemplates *template.Template
 }
 
 func NewServer(devMode bool) *Server {
@@ -35,16 +35,16 @@ func NewServer(devMode bool) *Server {
 
 	server := &Server{router: e}
 
+	server.setupEmailTemplates()
 	server.setupValidator()
 	server.setupDatabase(devMode)
 	server.setupJwt()
 	server.setRoutes(devMode)
+	server.setupInternalState()
 
 	return server
 }
 
 func (s *Server) Start(address string) error {
-	count, _ := s.Collections.Users.CountDocuments(context.TODO(), map[string]string{}, &options.CountOptions{})
-	fmt.Println(count)
 	return s.router.Start(address)
 }

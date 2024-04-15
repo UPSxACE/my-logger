@@ -1,6 +1,7 @@
 import { config } from "@/auth";
 import SessionContext from "@/components/session-context";
 import SingleThemeScript from "@/components/single-theme-script";
+import QueryClientProvider from "@/contexts/query-client-provider";
 import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import "@mantine/core/styles.css";
 import type { Metadata } from "next";
@@ -12,8 +13,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Journeymap Merger",
-  description: "Merge your minecraft journeymap pieces into a single big map!",
+  title: "MyLogger",
+  description: "Logging and web traffic analysis",
 };
 
 export default async function RootLayout({
@@ -38,13 +39,15 @@ export default async function RootLayout({
       </head>
       <body>
         <SessionContext session={session}>
-          <MantineProvider
-            theme={theme}
-            defaultColorScheme="light"
-            forceColorScheme="light"
-          >
-            {children}
-          </MantineProvider>
+          <QueryClientProvider>
+            <MantineProvider
+              theme={theme}
+              defaultColorScheme="light"
+              forceColorScheme="light"
+            >
+              {children}
+            </MantineProvider>
+          </QueryClientProvider>
         </SessionContext>
       </body>
     </html>

@@ -20,21 +20,19 @@ const mantineColorTokens = [
 const colors = mantineColorTokens.reduce(
   (accObj: { [key: string]: string }, colorToken) => {
     for (let i = 0; i <= 9; i++) {
-      accObj[
-        `mantine-${colorToken}-${i}`
-      ] = `var(--mantine-color-${colorToken}-${i})`;
+      accObj[`mantine-${colorToken}-${i}`] =
+        `var(--mantine-color-${colorToken}-${i})`;
     }
     return accObj;
   },
-  {}
+  {},
 );
 
 ["filled", "filled-hover", "light", "light-hover", "light-color"].map(
   (token) => {
-    colors[
-      `mantine-primary-${token}`
-    ] = `var(--mantine-primary-color-${token})`;
-  }
+    colors[`mantine-primary-${token}`] =
+      `var(--mantine-primary-color-${token})`;
+  },
 );
 
 for (let i = 0; i <= 9; i++) {

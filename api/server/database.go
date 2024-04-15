@@ -37,9 +37,15 @@ func (s *Server) setupDatabase(devMode bool) {
 	}
 
 	usersCollection := client.Database(dbName).Collection("users")
+	internalCollection := client.Database(dbName).Collection("internal")
+	confirmationTokensCollection := client.Database(dbName).Collection("confirmation-tokens")
+	recoveryTokensCollection := client.Database(dbName).Collection("recovery-tokens")
 
 	s.Collections = db.Collections{
-		Users: usersCollection,
+		Users:              usersCollection,
+		Internal:           internalCollection,
+		ConfirmationTokens: confirmationTokensCollection,
+		RecoveryTokens:     recoveryTokensCollection,
 	}
 
 	fmt.Println("Connected to MongoDB!")

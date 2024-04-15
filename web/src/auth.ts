@@ -1,4 +1,5 @@
-import jwt from "jsonwebtoken";
+import axios from "axios";
+import { SignJWT, jwtVerify } from "jose";
 import type {
   GetServerSidePropsContext,
   NextApiRequest,
@@ -6,29 +7,38 @@ import type {
 } from "next";
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
-import { getToken } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
 
-getToken;
 // You'll need to import and pass this
 // to `NextAuth` in `app/api/auth/[...nextauth]/route.ts`
 export const config = {
   jwt: {
     encode: async ({ token, secret }) => {
       if (token && secret) {
-        return jwt.sign(token, secret);
+        if (typeof secret !== "string")
+          throw new Error("Only strings supported for jwt secret");
+        return await new SignJWT(token)
+          .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+          .sign(new TextEncoder().encode(secret));
       }
       return "";
     },
     decode: async ({ token, secret }) => {
+      // NOTE: If you change here, also change middleware.ts
       if (!token) {
         return null;
       }
 
       try {
-        const decoded = jwt.verify(token, secret);
-        if (typeof decoded === "string") return null;
-        return decoded;
+        if (typeof secret !== "string")
+          throw new Error("Only strings supported for jwt secret");
+
+        const { payload } = await jwtVerify(
+          token,
+          new TextEncoder().encode(secret),
+        );
+
+        return payload;
       } catch (err) {
         return null;
       }
@@ -50,7 +60,21 @@ export const config = {
   pages: {
     signIn: "/login",
   },
-  callbacks: {},
+  callbacks: {
+    // TODO: Study about this
+    async session({ session, token }) {
+      if (token.user) {
+        session.user = token.user;
+      }
+      return session;
+    },
+    async jwt({ token, user }) {
+      if (user) {
+        token = { ...token, ...user };
+      }
+      return token;
+    },
+  },
   providers: [
     Credentials({
       // The name to display on the sign in form (e.g. "Sign in with...")
@@ -72,26 +96,44 @@ export const config = {
         },
       },
       async authorize(credentials, req) {
-        // console.log("Here:", credentials);
-        // Add logic here to look up the user from the credentials supplied
-        const user = { id: "1", name: "J Smith", email: "jsmith@example.com" };
+        try {
+          const data = await axios
+            .post(process.env.NEXT_PUBLIC_API_URL + "/api/login", credentials)
+            .then((res) => {
+              return res.data;
+            });
 
-        if (
-          credentials?.username === "test123" &&
-          credentials.password === "test123"
-        ) {
-          // Any object returned will be saved in `user` property of the JWT
-          return user;
-        } else {
-          // If you return null then an error will be displayed advising the user to check their details.
-          return null;
-
-          // You can also Reject this callback with an Error thus the user will be sent to the error page with the error message as a query parameter
+          return data;
+        } catch (err: any) {
+          switch (err?.response?.status) {
+            case 404:
+              throw new Error("The user does not exist.");
+            case 400:
+              throw new Error("Invalid username or password.");
+            default:
+              throw new Error("Try again later.");
+          }
         }
       },
     }),
   ],
 } satisfies NextAuthOptions;
+
+// // Need to replace original method because I also replaced the way of decoding jwt
+// export const getTokenCustom = async (req: NextRequestWithAuth) => {
+//   const cookieName =
+//     config?.cookies?.sessionToken?.name || "next-auth.session-token";
+//   const cookieValue = req.cookies.get(cookieName)?.value;
+
+//   if (!cookieValue) {
+//     return null;
+//   }
+
+//   return await config.jwt.decode({
+//     secret: process.env.NEXTAUTH_SECRET || "",
+//     token: cookieValue,
+//   });
+// };
 
 // Use it in server contexts
 export function auth(

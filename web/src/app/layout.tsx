@@ -2,12 +2,19 @@ import { config } from "@/auth";
 import SessionContext from "@/components/session-context";
 import SingleThemeScript from "@/components/single-theme-script";
 import QueryClientProvider from "@/contexts/query-client-provider";
-import { ColorSchemeScript, MantineProvider } from "@mantine/core";
+import {
+  AppShellMain,
+  ColorSchemeScript,
+  MantineProvider,
+} from "@mantine/core";
 import "@mantine/core/styles.css";
 import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { Inter } from "next/font/google";
 import { theme } from "../theme";
+import AppShell from "./_components/app-shell";
+import AppShellHeader from "./_components/app-shell-header";
+import AppShellSidebar from "./_components/app-shell-sidebar";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -45,7 +52,22 @@ export default async function RootLayout({
               defaultColorScheme="light"
               forceColorScheme="light"
             >
-              {children}
+              {session ? (
+                <AppShell>
+                  <AppShellSidebar />
+                  <AppShellHeader />
+                  <AppShellMain
+                    className="flex flex-col bg-[#f6f6f6]"
+                    style={{
+                      minHeight: "calc(100svh - 70px)",
+                    }}
+                  >
+                    <div className="flex-1 p-4">{children}</div>
+                  </AppShellMain>
+                </AppShell>
+              ) : (
+                children
+              )}
             </MantineProvider>
           </QueryClientProvider>
         </SessionContext>

@@ -16,8 +16,6 @@ export default function PageGuestLogin() {
   const [overlay, setOverlay] = useState(false);
   const [error, setError] = useState("");
 
-  const router = useRouter();
-
   const form = useForm({
     initialValues: {
       username: "",

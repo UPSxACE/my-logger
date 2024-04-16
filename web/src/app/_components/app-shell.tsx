@@ -36,8 +36,8 @@ export default function AppShell(props: { children: Readonly<ReactNode> }) {
         header={{ height: { base: 0 } }}
         navbar={{
           width: {
-            base: 70,
-            md: navbarCollapsed ? 70 : 300,
+            base: "4rem",
+            md: navbarCollapsed ? "4rem" : 260,
           },
           breakpoint: 0,
           collapsed: { mobile: false, desktop: false },

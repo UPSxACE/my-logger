@@ -8,21 +8,25 @@ import {
   MantineProvider,
 } from "@mantine/core";
 import "@mantine/core/styles.css";
+import "@mantine/dates/styles.css";
 import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
-import { Inter } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import { theme } from "../theme";
 import AppShell from "./_components/app-shell";
 import AppShellHeader from "./_components/app-shell-header";
 import AppShellSidebar from "./_components/app-shell-sidebar";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
   title: "MyLogger",
   description: "Logging and web traffic analysis",
 };
+
+const montserrat = Montserrat({
+  weight: ["300", "400", "500", "600", "700", "800"],
+  subsets: ["latin"],
+});
 
 export default async function RootLayout({
   children,
@@ -44,7 +48,7 @@ export default async function RootLayout({
           content="minimum-scale=1, initial-scale=1, width=device-width, user-scalable=no"
         />
       </head>
-      <body>
+      <body className={montserrat.className}>
         <SessionContext session={session}>
           <QueryClientProvider>
             <MantineProvider
@@ -59,10 +63,10 @@ export default async function RootLayout({
                   <AppShellMain
                     className="flex flex-col bg-[#f6f6f6]"
                     style={{
-                      minHeight: "calc(100svh - 70px)",
+                      minHeight: "calc(100svh - 6rem)",
                     }}
                   >
-                    <div className="flex-1 p-4">{children}</div>
+                    <div className="flex flex-1 flex-col p-4">{children}</div>
                   </AppShellMain>
                 </AppShell>
               ) : (

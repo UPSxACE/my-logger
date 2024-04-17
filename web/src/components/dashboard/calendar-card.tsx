@@ -22,7 +22,7 @@ export default function CalendarCard() {
             !dayjs(date).isSame(selected, "month"),
           selected: dayjs(date).isSame(Date.now(), "day"),
         })}
-        size={"xs"}
+        size={"sm"}
       />
     </div>
   );

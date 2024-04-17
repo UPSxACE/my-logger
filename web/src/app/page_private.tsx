@@ -1,7 +1,16 @@
+"use client";
+import Chart from "@/components/charts/chart";
 import BasicCard from "@/components/dashboard/basic-card";
 import CalendarCard from "@/components/dashboard/calendar-card";
 import ChartCard from "@/components/dashboard/chart-card";
 import StatCard from "@/components/dashboard/stat-card";
+import { FaRegPaperPlane } from "react-icons/fa6";
+import { LuNewspaper } from "react-icons/lu";
+import { RiComputerLine } from "react-icons/ri";
+
+// const Chart = dynamic(() => import("@/components/charts/chart"), {
+//   ssr: false,
+// });
 
 export default function HomePagePrivate() {
   return (
@@ -9,12 +18,29 @@ export default function HomePagePrivate() {
       <div className="flex flex-1 gap-4">
         <section id="general-stats" className="flex flex-1 flex-col">
           <div className="grid flex-1 grid-cols-4 grid-rows-[10rem_auto] gap-4">
-            <StatCard />
-            <StatCard />
-            <StatCard />
-            <StatCard />
+            <StatCard
+              icon={<RiComputerLine />}
+              name="Machines"
+              value={String(0)}
+            />
+            <StatCard
+              icon={<LuNewspaper />}
+              name="Total machine logs"
+              value={String(0)}
+            />
+
+            <StatCard
+              icon={<FaRegPaperPlane />}
+              name="Apps"
+              value={String(0)}
+            />
+            <StatCard
+              icon={<LuNewspaper />}
+              name="Total app logs"
+              value={String(0)}
+            />
             <ChartCard title="Chart Card" className="col-span-4">
-              Chart
+              <Chart />
             </ChartCard>
           </div>
         </section>

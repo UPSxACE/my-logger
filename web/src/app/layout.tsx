@@ -2,6 +2,7 @@ import { config } from "@/auth";
 import SessionContext from "@/components/session-context";
 import SingleThemeScript from "@/components/single-theme-script";
 import QueryClientProvider from "@/contexts/query-client-provider";
+import SocketProvider from "@/contexts/socket-provider";
 import {
   AppShellMain,
   ColorSchemeScript,
@@ -57,18 +58,20 @@ export default async function RootLayout({
               forceColorScheme="light"
             >
               {session ? (
-                <AppShell>
-                  <AppShellSidebar />
-                  <AppShellHeader />
-                  <AppShellMain
-                    className="flex flex-col bg-[#f6f6f6]"
-                    style={{
-                      minHeight: "calc(100svh - 6rem)",
-                    }}
-                  >
-                    <div className="flex flex-1 flex-col p-4">{children}</div>
-                  </AppShellMain>
-                </AppShell>
+                <SocketProvider>
+                  <AppShell>
+                    <AppShellSidebar />
+                    <AppShellHeader />
+                    <AppShellMain
+                      className="flex flex-col bg-[#f6f6f6]"
+                      style={{
+                        minHeight: "calc(100svh - 6rem)",
+                      }}
+                    >
+                      <div className="flex flex-1 flex-col p-4">{children}</div>
+                    </AppShellMain>
+                  </AppShell>
+                </SocketProvider>
               ) : (
                 children
               )}

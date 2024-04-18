@@ -1,122 +1,99 @@
 "use client";
-import { useInterval } from "@mantine/hooks";
-import dynamic from "next/dynamic";
-import { useEffect } from "react";
+import { SocketContext } from "@/contexts/socket-provider";
+import { SocketData } from "@/socket";
+import ApexCharts from "apexcharts";
+import { useContext, useEffect, useRef, useState } from "react";
+import ReactApexChart from "react-apexcharts";
 
-let lastDate = 10;
-var TICKINTERVAL = 1;
-let XAXISRANGE = 10;
+const X_AXIS_RANGE = 50;
 
-const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+// socket states
+let data: any[] = [];
+let lastIndexHeard = -1;
 
 export default function Chart() {
-  // const [data, setNewData] = useState([
-  //   {
-  //     x: lastDate,
-  //     y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-  //   },
-  // ]);
+  const [initialLoad, setInitialLoad] = useState(false);
 
-  let newData = [
-    {
-      x: 0,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 1,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 2,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 3,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 4,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 5,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 6,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 7,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 8,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 9,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-    {
-      x: 10,
-      y: Math.floor(Math.random() * (90 - 10 + 1)) + 10,
-    },
-  ];
+  const { socket, connected, error } = useContext(SocketContext);
 
-  function getNewSeries(baseval: number, yrange: any) {
-    var newDate = baseval + TICKINTERVAL;
-    lastDate = newDate;
-
-    // if (newData.length > 20) {
-    //   newData = newData.slice(1);
-    // }
-    // console.log(newData);
-
-    for (var i = 0; i < newData.length - 11; i++) {
-      // IMPORTANT
-      // we reset the x and y of the data which is out of drawing area
-      // to prevent memory leaks
-      newData[i].x = 0 - XAXISRANGE - TICKINTERVAL;
-      newData[i].y = 0;
-    }
-
-    newData.push({
-      x: newDate,
-      y: Math.floor(Math.random() * (yrange.max - yrange.min + 1)) + yrange.min,
-    });
-
-    // chart id, method, arguments
-    ApexCharts.exec("realtime", "updateSeries", [
-      {
-        data: newData,
-      },
-    ]);
-    // console.log(newData);
-    // setNewData(newData);
-  }
-
-  let firstTime = true;
-  const interval = useInterval(() => {
-    if (firstTime) {
-      firstTime = false;
-      return;
-    }
-
-    getNewSeries(lastDate, {
-      min: 10,
-      max: 90,
-    });
-
-    // console.log(newData);
-  }, 1000);
+  // Use useRef for mutable variables that we want to persist
+  // without triggering a re-render on their change
+  const requestRef = useRef<any>();
+  const previousTimeRef = useRef<any>();
 
   useEffect(() => {
-    interval.start();
-    return interval.stop;
-  }, [interval]);
+    const updateChart = (messageData: SocketData) => {
+      // update
+      if (
+        connected &&
+        socket &&
+        messageData.last_heard_index > lastIndexHeard
+      ) {
+        let dif;
+        const negativeIndex =
+          lastIndexHeard === -1 || messageData.last_heard_index === -1;
+        if (negativeIndex) {
+          dif = messageData.chart_data.length;
+        }
+        if (!negativeIndex) {
+          dif = messageData.last_heard_index - lastIndexHeard;
+        }
+        if (dif > 100) {
+          dif = 100;
+        }
 
-  // async do request while timeoutpasses!
+        lastIndexHeard = messageData.last_heard_index;
+        socket?.emit("chart1:update-received", lastIndexHeard);
+
+        if (dif > 0) {
+          data = [...data, ...messageData.chart_data.slice(-dif)];
+
+          if (initialLoad) {
+            ApexCharts.exec("realtime", "updateSeries", [
+              {
+                data,
+              },
+            ]);
+          }
+        }
+      }
+    };
+
+    if (connected && socket) {
+      const animate: FrameRequestCallback = (time) => {
+        if (!initialLoad && data.length > 0) {
+          setInitialLoad(true);
+        }
+
+        if (previousTimeRef.current != undefined) {
+          const deltaTime = time - previousTimeRef.current;
+
+          if (deltaTime >= 1000) {
+            // NOTE: I could animate chart here instead of updateChart function
+
+            previousTimeRef.current = time;
+          }
+        } else {
+          previousTimeRef.current = time;
+        }
+
+        requestRef.current = requestAnimationFrame(animate);
+      };
+
+      socket.emit("chart1:start-listening", lastIndexHeard);
+      socket.on("chart1:update", updateChart);
+
+      requestRef.current = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      if (connected && socket) {
+        socket.emit("chart1:stop-listening", null);
+      }
+      socket?.off("chart1:update", updateChart);
+      cancelAnimationFrame(requestRef.current);
+    };
+  }, [socket, connected, initialLoad]);
 
   const options: ApexCharts.ApexOptions = {
     // responsive: [],
@@ -146,11 +123,6 @@ export default function Chart() {
       zoom: {
         enabled: false,
       },
-      events: {
-        animationEnd(chart, options) {
-          console.log("finished loading");
-        },
-      },
     },
     dataLabels: {
       enabled: false,
@@ -167,7 +139,7 @@ export default function Chart() {
     },
     xaxis: {
       type: "numeric",
-      range: XAXISRANGE,
+      range: X_AXIS_RANGE,
     },
     yaxis: {
       min: 0,
@@ -178,14 +150,18 @@ export default function Chart() {
     },
   };
 
+  if (!connected || !initialLoad) {
+    return null;
+  }
+
   return (
-    <ApexChart
+    <ReactApexChart
       // className="h-full"
       options={options}
       series={[
         {
           name: "Desktops",
-          data: newData.slice(),
+          data: data,
           color: "var(--mantine-primary-color-7)",
         },
       ]}

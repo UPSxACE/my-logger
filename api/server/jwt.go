@@ -14,13 +14,13 @@ const TOKEN_DURATION = time.Hour * 72
 /** JWT custom claim */
 type jwtCustomClaims struct {
 	Username    string `json:"username"`
-	UserId      int    `json:"userId"`
+	UserId      string `json:"userId"`
 	Permissions int    `json:"permissions"`
 	jwt.RegisteredClaims
 }
 
 /** JWT revoke */
-type userId = int
+type userId = string
 type revokeTime = time.Time
 type sessionRevokeList = map[userId]revokeTime
 
@@ -34,7 +34,7 @@ func (s *Server) setupJwt() {
 		SigningKey: []byte(SECRET),
 	}
 
-	s.tokenBlacklist = map[int]time.Time{}
+	s.tokenBlacklist = map[string]time.Time{}
 }
 
 func (s *Server) jwtMiddleware(next echo.HandlerFunc) echo.HandlerFunc {

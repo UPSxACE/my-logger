@@ -2,13 +2,23 @@ package server
 
 import (
 	"html/template"
+	"net/http"
 	"os"
 
 	"github.com/UPSxACE/my-logger/api/db"
 	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/websocket"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+)
+
+var (
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return r.Header.Get("origin") == os.Getenv("SOCKET_ORIGIN")
+		},
+	}
 )
 
 type Server struct {

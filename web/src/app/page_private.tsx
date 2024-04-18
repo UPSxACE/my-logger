@@ -1,9 +1,9 @@
 "use client";
-import Chart from "@/components/charts/chart";
 import BasicCard from "@/components/dashboard/basic-card";
 import CalendarCard from "@/components/dashboard/calendar-card";
 import ChartCard from "@/components/dashboard/chart-card";
 import StatCard from "@/components/dashboard/stat-card";
+import dynamic from "next/dynamic";
 import { FaRegPaperPlane } from "react-icons/fa6";
 import { LuNewspaper } from "react-icons/lu";
 import { RiComputerLine } from "react-icons/ri";
@@ -11,6 +11,10 @@ import { RiComputerLine } from "react-icons/ri";
 // const Chart = dynamic(() => import("@/components/charts/chart"), {
 //   ssr: false,
 // });
+
+const Chart = dynamic(() => import("@/components/charts/chart"), {
+  ssr: false,
+});
 
 export default function HomePagePrivate() {
   return (

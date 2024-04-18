@@ -27,6 +27,7 @@ func (s *Server) setRoutes(devMode bool) {
 
 	// SECTION - Private Routes
 	routeIndexPrivate := s.router.Group("/api", s.jwtMiddleware)
+	routeIndexPrivate.GET("/ws", s.getWs)
 	if devMode {
 		// Test nextjs session token
 		routeIndexPrivate.GET("/test", func(c echo.Context) error {

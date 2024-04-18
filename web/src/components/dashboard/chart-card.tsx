@@ -28,6 +28,7 @@ export default function ChartCard({
     >
       <h1 className="m-0 text-2xl">{title}</h1>
       <div className="relative h-full w-full flex-1 overflow-hidden">
+        {/* 110% width to hide weird renderization of gradients when updating the chart  */}
         <div className="absolute h-[calc(100%-10px)] w-[110%]">{children}</div>
       </div>
     </div>

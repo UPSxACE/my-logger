@@ -10,7 +10,7 @@ export default function StatCard({
 }: {
   height?: number | string;
   icon: ReactNode;
-  value: string;
+  value: string | ReactNode;
   name: string;
   className?: string;
 }) {

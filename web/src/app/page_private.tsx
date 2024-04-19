@@ -6,9 +6,11 @@ import ChartCard from "@/components/dashboard-ui/chart-card";
 import StatCard from "@/components/dashboard-ui/stat-card";
 import TotalRequests from "@/components/info/total-requests";
 import dynamic from "next/dynamic";
+import { useState } from "react";
 import { FaRegPaperPlane } from "react-icons/fa6";
 import { LuNewspaper } from "react-icons/lu";
 import { RiComputerLine } from "react-icons/ri";
+import AnimatedNumbers from "./_components/animated-number";
 
 const HomeCpuChart = dynamic(
   () => import("@/components/charts/home-cpu-chart"),
@@ -25,6 +27,13 @@ const MostApiRequestsChart = dynamic(
 );
 
 export default function HomePagePrivate() {
+  const [stats, setStats] = useState({
+    machines: 0,
+    total_machine_logs: 0,
+    apps: 0,
+    total_app_logs: 0,
+  });
+
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex flex-1 gap-4">
@@ -33,23 +42,40 @@ export default function HomePagePrivate() {
             <StatCard
               icon={<RiComputerLine />}
               name="Machines"
-              value={String(0)}
+              value={
+                <AnimatedNumbers
+                  defaultNumber={0}
+                  targetNumber={stats.machines}
+                />
+              }
             />
             <StatCard
               icon={<LuNewspaper />}
               name="Total machine logs"
-              value={String(0)}
+              value={
+                <AnimatedNumbers
+                  defaultNumber={0}
+                  targetNumber={stats.total_machine_logs}
+                />
+              }
             />
 
             <StatCard
               icon={<FaRegPaperPlane />}
               name="Apps"
-              value={String(0)}
+              value={
+                <AnimatedNumbers defaultNumber={0} targetNumber={stats.apps} />
+              }
             />
             <StatCard
               icon={<LuNewspaper />}
               name="Total app logs"
-              value={String(0)}
+              value={
+                <AnimatedNumbers
+                  defaultNumber={0}
+                  targetNumber={stats.total_app_logs}
+                />
+              }
             />
             <ChartCard
               title="Machine 1 Cpu Usage"

@@ -65,7 +65,7 @@ export default async function RootLayout({
                     <AppShellMain
                       className="flex flex-col bg-[#f6f6f6]"
                       style={{
-                        minHeight: "calc(100svh - 6rem)",
+                        minHeight: "calc(100svh - 3.5rem)",
                       }}
                     >
                       <div className="flex flex-1 flex-col p-4">{children}</div>

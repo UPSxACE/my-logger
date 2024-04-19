@@ -1,6 +1,8 @@
 "use client";
 import {
+  Anchor,
   Avatar,
+  Breadcrumbs,
   Menu,
   MenuDropdown,
   MenuItem,
@@ -9,6 +11,7 @@ import {
 } from "@mantine/core";
 import clsx from "clsx";
 import { signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import { useContext } from "react";
 import { GoChevronDown } from "react-icons/go";
 import { IoPersonCircleOutline } from "react-icons/io5";
@@ -20,14 +23,38 @@ export default function AppShellHeader() {
   // const { searchFilter, setSearchFilter } = useContext(NotesContext);
 
   //  border-0 border-b border-solid border-b-stone-200
+
+  const pathname = usePathname();
+  const route = pathname.slice(1);
+  const subpaths = route.split("/");
+  const words = subpaths[0].split("-");
+  const capitalizedWords = words.map((word) => {
+    const firstLetter = word.charAt(0).toUpperCase();
+    return firstLetter + word.slice(1);
+  });
+  const wordsTogether = capitalizedWords.join(" ");
+
+  const items = [
+    { title: "Dashboard", href: "/" },
+    { title: wordsTogether || "Home", href: "#" },
+  ].map((item, index) => (
+    <Anchor
+      href={item.href}
+      key={index}
+      className="text-xl font-semibold text-mantine-text hover:no-underline"
+    >
+      {item.title}
+    </Anchor>
+  ));
+
   return (
     <header
       className={clsx(
-        "items-centerborder-opacity-70 flex h-[6rem] gap-2 bg-[#f6f6f6] transition-all duration-200",
+        "items-centerborder-opacity-70 flex h-[3.5rem] gap-2 bg-[#f6f6f6] transition-all duration-200",
         navbarCollapsed ? "pl-[4rem]" : "pl-[260px] max-md:pl-[4rem]",
       )}
     >
-      <div className="flex flex-1 items-center gap-2 px-4 py-2">
+      <div className="flex flex-1 items-center gap-2 px-4 pt-4">
         {/* <TextInput
           // value={searchFilter}
           // onChange={(e) => setSearchFilter(e.target.value)}
@@ -46,6 +73,10 @@ export default function AppShellHeader() {
           classNames={{ input: "border-0" }}
           leftSection={<RiSearchLine />}
         /> */}
+        <Breadcrumbs classNames={{ separator: "text-xl font-semibold" }}>
+          {items}
+        </Breadcrumbs>
+
         <Menu offset={0} position="bottom-end" withArrow arrowOffset={8}>
           <UnstyledButton className="ml-auto flex h-full flex-col justify-center text-xl">
             <MenuTarget>

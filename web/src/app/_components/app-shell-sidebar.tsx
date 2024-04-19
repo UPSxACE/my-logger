@@ -17,7 +17,7 @@ import { AppShellContext } from "./app-shell";
 export default function AppShellSidebar() {
   const { navbarCollapsed, setNavbarCollapsed } = useContext(AppShellContext);
 
-  // TODO: listen to ctrl key to toggle navbar collapse
+  // TODO: listen to ctrl+alt key to toggle navbar collapse
 
   function toggleNavbarCollapse() {
     setNavbarCollapsed((val) => !val);
@@ -33,12 +33,12 @@ export default function AppShellSidebar() {
       className="overflow-hidden border-0 transition-all duration-200"
     >
       <div className="absolute flex h-full w-[260px] flex-col">
-        <header className="h-[6rem]">
+        <header className="h-[4.5rem]">
           {navbarCollapsed ? (
             <Anchor
               component={Link}
               href="/"
-              className="flex h-[6rem] w-[4rem] items-center justify-center"
+              className="flex h-[4.5rem] w-[4rem] items-center justify-center"
             >
               <GiBrassEye
                 className={"flex text-[2rem] text-mantine-primary-7"}

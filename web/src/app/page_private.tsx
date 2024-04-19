@@ -1,20 +1,28 @@
 "use client";
-import BasicCard from "@/components/dashboard/basic-card";
-import CalendarCard from "@/components/dashboard/calendar-card";
-import ChartCard from "@/components/dashboard/chart-card";
-import StatCard from "@/components/dashboard/stat-card";
+
+import BasicCard from "@/components/dashboard-ui/basic-card";
+import CalendarCard from "@/components/dashboard-ui/calendar-card";
+import ChartCard from "@/components/dashboard-ui/chart-card";
+import StatCard from "@/components/dashboard-ui/stat-card";
+import TotalRequests from "@/components/info/total-requests";
 import dynamic from "next/dynamic";
 import { FaRegPaperPlane } from "react-icons/fa6";
 import { LuNewspaper } from "react-icons/lu";
 import { RiComputerLine } from "react-icons/ri";
 
-// const Chart = dynamic(() => import("@/components/charts/chart"), {
-//   ssr: false,
-// });
+const HomeCpuChart = dynamic(
+  () => import("@/components/charts/home-cpu-chart"),
+  {
+    ssr: false,
+  },
+);
 
-const Chart = dynamic(() => import("@/components/charts/chart"), {
-  ssr: false,
-});
+const MostApiRequestsChart = dynamic(
+  () => import("@/components/charts/most-api-requests-chart"),
+  {
+    ssr: false,
+  },
+);
 
 export default function HomePagePrivate() {
   return (
@@ -43,22 +51,40 @@ export default function HomePagePrivate() {
               name="Total app logs"
               value={String(0)}
             />
-            <ChartCard title="Chart Card" className="col-span-4">
-              <Chart />
+            <ChartCard
+              title="Machine 1 Cpu Usage"
+              className="col-span-4"
+              rightPad
+            >
+              <HomeCpuChart />
             </ChartCard>
           </div>
         </section>
         <section id="general-info" className="flex flex-col gap-4">
           <CalendarCard />
-          <BasicCard height={"15rem"} className="flex-[3]" />
-          <BasicCard height={"10rem"} className="flex-[2]" />
+          <ChartCard
+            title="Most Api Requests"
+            className="flex-[3]"
+            height={"15rem"}
+            bottomFix
+            // square
+          >
+            <MostApiRequestsChart />
+          </ChartCard>
+          {/* <BasicCard height={"15rem"} className="flex-[3]" /> */}
+          <BasicCard
+            height={"10rem"}
+            className="flex flex-[2] flex-col justify-between gap-2"
+          >
+            <TotalRequests />
+          </BasicCard>
         </section>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      {/* <div className="grid grid-cols-3 gap-4">
         <BasicCard height={"15rem"} />
         <BasicCard height={"15rem"} />
         <BasicCard height={"15rem"} />
-      </div>
+      </div> */}
     </div>
   );
 }

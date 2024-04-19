@@ -32,7 +32,7 @@ export default function Logo() {
       <Anchor
         component={Link}
         href="/"
-        className="flex h-[6rem] w-[4rem] items-center justify-center"
+        className="flex h-[4.5rem] w-[4rem] items-center justify-center"
       >
         <GiBrassEye
           className={

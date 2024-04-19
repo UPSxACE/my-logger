@@ -11,7 +11,7 @@ const X_AXIS_RANGE = 50;
 let data: any[] = [];
 let lastIndexHeard = -1;
 
-export default function Chart() {
+export default function HomeCpuChart() {
   const [initialLoad, setInitialLoad] = useState(false);
 
   const { socket, connected, error } = useContext(SocketContext);
@@ -92,6 +92,11 @@ export default function Chart() {
       }
       socket?.off("chart1:update", updateChart);
       cancelAnimationFrame(requestRef.current);
+
+      // free up memory of unused data
+      if (data.length > 100) {
+        data = data.slice(-100);
+      }
     };
   }, [socket, connected, initialLoad]);
 

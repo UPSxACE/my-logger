@@ -1,5 +1,5 @@
-import clsx from "clsx";
 import { ReactNode } from "react";
+import { twMerge } from "tailwind-merge";
 
 export default function ChartCard({
   title,
@@ -27,7 +27,7 @@ export default function ChartCard({
         boxShadow:
           "rgba(27, 31, 35, 0.04) 0px 1px 0px, rgba(255, 255, 255, 0.25) 0px 1px 0px inset",
       }}
-      className={clsx(
+      className={twMerge(
         "relative flex flex-col rounded-md bg-white p-4",
         rightPad && "pr-8",
         className,
@@ -35,14 +35,14 @@ export default function ChartCard({
     >
       <h1 className="m-0 text-lg">{title}</h1>
       <div
-        className={clsx(
+        className={twMerge(
           "relative  w-full flex-1 overflow-hidden",
           square ? "aspect-square" : "h-full",
         )}
       >
         {/* 110% width to hide weird renderization of gradients when updating the chart  */}
         <div
-          className={clsx(
+          className={twMerge(
             "absolute",
             square
               ? "h-full"

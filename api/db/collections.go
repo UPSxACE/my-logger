@@ -7,4 +7,8 @@ type Collections struct {
 	Internal           *mongo.Collection
 	ConfirmationTokens *mongo.Collection
 	RecoveryTokens     *mongo.Collection
+	Machines           *mongo.Collection
+	ApiKeys            *mongo.Collection
 }
+
+// TODO: create collaction wrappers and make aggregation util functions to make it easier to populate relationships

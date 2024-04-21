@@ -9,7 +9,6 @@ import {
   MenuTarget,
   UnstyledButton,
 } from "@mantine/core";
-import clsx from "clsx";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useContext } from "react";
@@ -17,6 +16,7 @@ import { GoChevronDown } from "react-icons/go";
 import { IoPersonCircleOutline } from "react-icons/io5";
 import { RiLogoutBoxLine } from "react-icons/ri";
 import { AppShellContext } from "./app-shell";
+import { twMerge } from "tailwind-merge";
 
 export default function AppShellHeader() {
   const { navbarCollapsed } = useContext(AppShellContext);
@@ -49,7 +49,7 @@ export default function AppShellHeader() {
 
   return (
     <header
-      className={clsx(
+      className={twMerge(
         "items-centerborder-opacity-70 flex h-[3.5rem] gap-2 bg-[#f6f6f6] transition-all duration-200",
         navbarCollapsed ? "pl-[4rem]" : "pl-[260px] max-md:pl-[4rem]",
       )}
@@ -73,7 +73,9 @@ export default function AppShellHeader() {
           classNames={{ input: "border-0" }}
           leftSection={<RiSearchLine />}
         /> */}
-        <Breadcrumbs classNames={{ separator: "text-xl font-semibold" }}>
+        <Breadcrumbs
+          classNames={{ separator: "text-xl font-semibold text-mantine-text" }}
+        >
           {items}
         </Breadcrumbs>
 

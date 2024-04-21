@@ -8,6 +8,7 @@ import (
 
 func (s *Server) setRoutes(devMode bool) {
 	// SECTION - Public Routes
+	// ANCHOR - Internal (ONLY GET REQUESTS)
 	s.router.GET("api/internal/owner-registered", func(c echo.Context) error {
 		return c.JSON(200, s.internal.ownerRegistered)
 	})
@@ -17,15 +18,16 @@ func (s *Server) setRoutes(devMode bool) {
 	})
 
 	// SECTION - Guest Routes
-	routeIndexGuest := s.router.Group("/api", s.guestMiddleware)
 	// ANCHOR - Auth
-	routeIndexGuest.POST("/login", s.postLoginRoute)
-	routeIndexGuest.POST("/register", s.postRegisterRoute)
-	routeIndexGuest.POST("/confirm-email", s.postConfirmEmailRoute)
-	routeIndexGuest.POST("/forgot-password", s.postForgotPasswordRoute)
-	routeIndexGuest.POST("/recover-account", s.postRecoverAccountRoute)
+	routeAuthGuest := s.router.Group("/api", s.guestMiddleware)
+	routeAuthGuest.POST("/login", s.postLoginRoute)
+	routeAuthGuest.POST("/register", s.postRegisterRoute)
+	routeAuthGuest.POST("/confirm-email", s.postConfirmEmailRoute)
+	routeAuthGuest.POST("/forgot-password", s.postForgotPasswordRoute)
+	routeAuthGuest.POST("/recover-account", s.postRecoverAccountRoute)
 
 	// SECTION - Private Routes
+	// ANCHOR - Index & Web Socket
 	routeIndexPrivate := s.router.Group("/api", s.jwtMiddleware)
 	routeIndexPrivate.GET("/ws", s.getWs)
 	if devMode {
@@ -36,6 +38,12 @@ func (s *Server) setRoutes(devMode bool) {
 			return c.JSON(200, "pong")
 		})
 	}
+
+	// ANCHOR - Machines
+	routeMachinesPrivate := s.router.Group("/api/machines", s.jwtMiddleware)
+	routeMachinesPrivate.GET("", s.getMachines)
+	routeMachinesPrivate.POST("", s.postMachines)
+	routeMachinesPrivate.DELETE("/:id", s.deleteMachines)
 
 	// SECTION - Moderation Routes
 }

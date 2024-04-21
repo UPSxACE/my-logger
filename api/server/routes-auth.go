@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -49,7 +48,7 @@ func (s *Server) postLoginRoute(c echo.Context) error {
 
 	user := &db.User{}
 	if err := result.Decode(user); err != nil {
-		fmt.Println(err)
+		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
@@ -117,7 +116,7 @@ func (s *Server) postRegisterRoute(c echo.Context) error {
 	// Save
 	hashedPassword, err := HashPassword(register.Password)
 	if err != nil {
-		fmt.Println(err)
+		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
@@ -133,14 +132,14 @@ func (s *Server) postRegisterRoute(c echo.Context) error {
 
 	insertedUser, err := s.Collections.Users.InsertOne(ctx, newUser, nil)
 	if err != nil {
-		fmt.Println(err)
+		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
 	// send email
 	err = s.sendEmailConfirmationEmail(ctx, insertedUser.InsertedID, newUser.Username, newUser.Email)
 	if err != nil {
-		fmt.Println(err)
+		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
@@ -219,14 +218,14 @@ func (s *Server) postForgotPasswordRoute(c echo.Context) error {
 
 	user := &db.User{}
 	if err := result.Decode(user); err != nil {
-		fmt.Println(err)
+		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
 	// send email
 	err = s.sendRecoveryEmail(ctx, user.ID, user.Username, user.Email)
 	if err != nil {
-		fmt.Println(err)
+		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
@@ -276,7 +275,7 @@ func (s *Server) postRecoverAccountRoute(c echo.Context) error {
 	// hash new password
 	hashedPassword, err := HashPassword(body.NewPassword)
 	if err != nil {
-		fmt.Println(err)
+		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 

@@ -1,2 +1,9 @@
 @tailwind components;
 @tailwind utilities;
+
+.light-input {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+.light-input:focus-within {
+  border-color: var(--input-bd-focus);
+}

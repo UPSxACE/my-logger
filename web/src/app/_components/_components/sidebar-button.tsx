@@ -1,11 +1,11 @@
 "use client";
 import { UnstyledButton } from "@mantine/core";
-import clsx from "clsx";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ComponentPropsWithoutRef, ReactElement, useContext } from "react";
 import { IconType } from "react-icons";
 import { AppShellContext } from "../app-shell";
+import { twMerge } from "tailwind-merge";
 
 interface SidebarButtonProps extends ComponentPropsWithoutRef<"a"> {
   className?: string;
@@ -44,13 +44,13 @@ export default function SidebarButton({
   return (
     <UnstyledButton
       {...extraProps}
-      className={clsx(
+      className={twMerge(
         "group w-full overflow-hidden rounded-md font-semibold",
         className,
       )}
     >
       <div
-        className={clsx(
+        className={twMerge(
           "flex w-full items-center",
           buttonActive
             ? "font-semibold text-mantine-primary-9"
@@ -58,7 +58,7 @@ export default function SidebarButton({
         )}
       >
         <div
-          className={clsx(
+          className={twMerge(
             "mr-3 flex h-[2.5rem] w-[2.5rem] items-center justify-center rounded-lg p-2 transition-all duration-300",
             buttonActive
               ? "bg-mantine-primary-7 text-white"
@@ -68,7 +68,7 @@ export default function SidebarButton({
           <span className="flex items-center text-xl">{Icon}</span>
         </div>
         <span
-          className={clsx(
+          className={twMerge(
             "flex items-center text-sm transition-all duration-300",
             buttonActive
               ? "text-mantine-primary-9"

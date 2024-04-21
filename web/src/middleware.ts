@@ -11,7 +11,7 @@ const guestRoutes: string[] = [
   "/forgot-password",
   "/recover-account",
 ];
-const privateRoutes: string[] = [];
+const privateRoutes: string[] = ["/machines", "/apps"];
 
 export default withAuth(
   // `withAuth` augments your `Request` with the user's token.
@@ -59,7 +59,7 @@ export default withAuth(
     );
 
     if (isPrivateRoute && !isAuthenticated) {
-      return NextResponse.redirect(new URL("/login", req.url));
+      return NextResponse.redirect(new URL("/", req.url));
     }
 
     return NextResponse.next();

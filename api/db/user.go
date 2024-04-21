@@ -4,6 +4,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// TODO: add created_at, updated_at, deleted_at, and fill on create account
 type User struct {
 	ID             primitive.ObjectID `json:"id" bson:"_id"`
 	Username       string             `json:"username" bson:"username"`
@@ -12,5 +13,5 @@ type User struct {
 	AvatarUrl      string             `json:"avatar_url" bson:"avatar_url"`
 	RoleID         int                `json:"role_id" bson:"role_id"`
 	EmailConfirmed bool               `json:"-" bson:"email_confirmed"`
-	Deleted        bool
+	Deleted        bool               `json:"-" bson:"deleted"`
 }

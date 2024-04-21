@@ -10,6 +10,8 @@ import {
 } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
+import { Notifications } from "@mantine/notifications";
+import "@mantine/notifications/styles.css";
 import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { Montserrat } from "next/font/google";
@@ -57,6 +59,7 @@ export default async function RootLayout({
               defaultColorScheme="light"
               forceColorScheme="light"
             >
+              <Notifications position="bottom-right" zIndex={1000} limit={5} />
               {session ? (
                 <SocketProvider>
                   <AppShell>

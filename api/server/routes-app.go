@@ -11,17 +11,18 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type MachineDto struct {
-	Id      string      `json:"id" bson:"_id"`
-	Name    string      `json:"name" bson:"name"`
-	HostURL string      `json:"host_url" bson:"host_url"`
-	ApiKey  []db.ApiKey `json:"api_key" bson:"api_key"`
+type AppDto struct {
+	Id      string       `json:"id" bson:"_id"`
+	Name    string       `json:"name" bson:"name"`
+	URL     string       `json:"url" bson:"url"`
+	Machine []db.Machine `json:"machine" bson:"machine"`
+	ApiKey  []db.ApiKey  `json:"api_key" bson:"api_key"`
 }
 
-func (s *Server) getMachines(c echo.Context) error {
+func (s *Server) getApps(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	machines := []MachineDto{}
+	apps := []AppDto{}
 
 	// find and populate data
 	firstStage := bson.M{"$match": bson.M{"deleted": false}}
@@ -31,20 +32,26 @@ func (s *Server) getMachines(c echo.Context) error {
 		"foreignField": "_id",
 		"as":           "api_key",
 	}}
+	thirdStage := bson.M{"$lookup": bson.M{
+		"from":         "machines",
+		"localField":   "machine_id",
+		"foreignField": "_id",
+		"as":           "machine",
+	}}
 
-	cursor, err := s.Collections.Machines.Aggregate(ctx, bson.A{firstStage, secondStage})
+	cursor, err := s.Collections.Apps.Aggregate(ctx, bson.A{firstStage, secondStage, thirdStage})
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
 	for cursor.Next(ctx) {
-		var result MachineDto
+		var result AppDto
 		if err := cursor.Decode(&result); err != nil {
 			c.Logger().Error(err)
 			return echo.ErrInternalServerError
 		}
-		machines = append(machines, result)
+		apps = append(apps, result)
 	}
 
 	if err := cursor.Err(); err != nil {
@@ -52,28 +59,42 @@ func (s *Server) getMachines(c echo.Context) error {
 		return echo.ErrInternalServerError
 	}
 
-	return c.JSON(http.StatusOK, machines)
+	return c.JSON(http.StatusOK, apps)
 }
 
-type PostMachinesBody struct {
-	Name    string `json:"name"`
-	HostURL string `json:"host_url"`
+type PostAppsBody struct {
+	Name      string `json:"name"`
+	Url       string `json:"url"`
+	MachineId string `json:"machine_id"`
 }
 
-func (s *Server) postMachines(c echo.Context) error {
+func (s *Server) postApps(c echo.Context) error {
 	// Read body
-	body := &PostMachinesBody{}
+	body := &PostAppsBody{}
 
 	if err := c.Bind(body); err != nil {
 		return echo.ErrBadRequest
 	}
 
 	// Validate fields
-	if body.Name == "" || body.HostURL == "" {
+	if body.Name == "" || body.Url == "" || body.MachineId == "" {
+		return echo.ErrBadRequest
+	}
+
+	machineId, err := primitive.ObjectIDFromHex(body.MachineId)
+	if err != nil {
 		return echo.ErrBadRequest
 	}
 
 	ctx := c.Request().Context()
+
+	// FIND MACHINE AND IF NOT RETURN ERR
+	result := s.Collections.Machines.FindOne(ctx, bson.M{"_id": machineId, "deleted": false}, nil)
+	machine := &db.Machine{}
+	err = result.Decode(machine)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
 
 	// Create and save a new api key
 	newApiKeyGenerated, err := generateAPIKey(32)
@@ -84,60 +105,67 @@ func (s *Server) postMachines(c echo.Context) error {
 
 	newApiKey := &db.ApiKey{
 		ID:          primitive.NewObjectID(),
-		TypeOfToken: "machine",
+		TypeOfToken: "app",
 		CreatedAt:   primitive.NewDateTimeFromTime(time.Now()),
 		Deleted:     false,
 		Value:       newApiKeyGenerated,
 	}
 
-	result, err := s.Collections.ApiKeys.InsertOne(ctx, newApiKey, nil)
+	sResult, err := s.Collections.ApiKeys.InsertOne(ctx, newApiKey, nil)
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
-	apiKeyId, ok := result.InsertedID.(primitive.ObjectID)
+	apiKeyId, ok := sResult.InsertedID.(primitive.ObjectID)
 	if !ok {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
-	// Create machine
-	newMachine := &db.Machine{
+	// Create app
+	newApp := &db.App{
 		ID:              primitive.NewObjectID(),
 		Name:            body.Name,
-		HostURL:         body.HostURL,
+		Url:             body.Url,
+		MachineId:       machine.ID,
 		CurrentApiKeyId: apiKeyId,
 		Deleted:         false,
 	}
 
-	result, err = s.Collections.Machines.InsertOne(ctx, newMachine, nil)
+	sResult, err = s.Collections.Apps.InsertOne(ctx, newApp, nil)
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
-	firstStage := bson.M{"$match": bson.M{"_id": result.InsertedID, "deleted": false}}
+	firstStage := bson.M{"$match": bson.M{"_id": sResult.InsertedID, "deleted": false}}
 	secondStage := bson.M{"$lookup": bson.M{
 		"from":         "api-keys",
 		"localField":   "current_api_key_id",
 		"foreignField": "_id",
 		"as":           "api_key",
 	}}
+	thirdStage := bson.M{"$lookup": bson.M{
+		"from":         "machines",
+		"localField":   "machine_id",
+		"foreignField": "_id",
+		"as":           "machine",
+	}}
 
-	cursor, err := s.Collections.Machines.Aggregate(ctx, bson.A{firstStage, secondStage})
+	cursor, err := s.Collections.Apps.Aggregate(ctx, bson.A{firstStage, secondStage, thirdStage})
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
-	var insertedMachine MachineDto
+	var insertedApp AppDto
 	next := cursor.Next(ctx)
 	if !next {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
-	if err := cursor.Decode(&insertedMachine); err != nil {
+	if err := cursor.Decode(&insertedApp); err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
@@ -146,10 +174,10 @@ func (s *Server) postMachines(c echo.Context) error {
 		return echo.ErrInternalServerError
 	}
 
-	return c.JSON(http.StatusOK, insertedMachine)
+	return c.JSON(http.StatusOK, insertedApp)
 }
 
-func (s *Server) deleteMachines(c echo.Context) error {
+func (s *Server) deleteApps(c echo.Context) error {
 	idParam := c.Param("id")
 
 	objId, err := primitive.ObjectIDFromHex(idParam)
@@ -159,7 +187,7 @@ func (s *Server) deleteMachines(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
-	result, err := s.Collections.Machines.UpdateByID(ctx, objId, bson.M{
+	result, err := s.Collections.Apps.UpdateByID(ctx, objId, bson.M{
 		"$set": bson.M{
 			"deleted": true,
 		},
@@ -176,11 +204,9 @@ func (s *Server) deleteMachines(c echo.Context) error {
 
 	// asynchronously revoke the current key of the deleted document
 	go func() {
-		// REVIEW: Even though it's currently revoking the machine's api key, it's not revoking the api keys that
-		// are associated to the machine
 		ctx := context.Background()
 
-		res := s.Collections.Machines.FindOne(ctx, bson.M{
+		res := s.Collections.Apps.FindOne(ctx, bson.M{
 			"_id": objId,
 		})
 		if err := res.Err(); err != nil {
@@ -188,14 +214,14 @@ func (s *Server) deleteMachines(c echo.Context) error {
 			return
 		}
 
-		machine := &db.Machine{}
-		err := res.Decode(machine)
+		app := &db.App{}
+		err := res.Decode(app)
 		if err != nil {
 			c.Logger().Error(err)
 			return
 		}
 
-		err = s.revokeApiKey(ctx, machine.CurrentApiKeyId)
+		err = s.revokeApiKey(ctx, app.CurrentApiKeyId)
 		if err != nil {
 			c.Logger().Error(err)
 		}

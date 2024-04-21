@@ -10,6 +10,7 @@ import {
 } from "react-icons/ai";
 import { GiBrassEye } from "react-icons/gi";
 import { GoChevronLeft } from "react-icons/go";
+import { GrAppsRounded } from "react-icons/gr";
 import { LiaKeySolid } from "react-icons/lia";
 import SidebarButton from "./_components/sidebar-button";
 import { AppShellContext } from "./app-shell";
@@ -56,6 +57,9 @@ export default function AppShellSidebar() {
           </SidebarButton>
           <SidebarButton Icon={<AiOutlineBlock />} navlink="machines">
             Machines
+          </SidebarButton>
+          <SidebarButton Icon={<GrAppsRounded />} navlink="apps">
+            Apps
           </SidebarButton>
           <SidebarButton Icon={<AiOutlineFileText />} navlink="logs">
             Logs

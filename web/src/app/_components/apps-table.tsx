@@ -14,21 +14,22 @@ import {
   LuTrash2,
 } from "react-icons/lu";
 
-export interface Machine {
+export interface App {
   id: string;
   name: string;
   api_key: { value: string }[];
-  host_url: string;
+  url: string;
+  machine: any; //FIXME
 }
 
-export function getMachinesTableConfig(
-  data: Machine[],
+export function getAppsTableConfig(
+  data: App[],
   refetch: ReturnType<typeof useQuery>["refetch"],
 ) {
   return {
-    columns: machinesColumns,
+    columns: appsColumns,
     data: data || [],
-    getCoreRowModel: getCoreRowModel<Machine>(),
+    getCoreRowModel: getCoreRowModel<App>(),
     meta: {
       refetchData() {
         refetch();
@@ -37,13 +38,17 @@ export function getMachinesTableConfig(
   };
 }
 
-const columnHelper = createColumnHelper<Machine>();
-const machinesColumns = [
-  columnHelper.accessor((machine) => machine.name, {
+const columnHelper = createColumnHelper<App>();
+const appsColumns = [
+  columnHelper.accessor((app) => app.name, {
     header: "Name".toUpperCase(),
     cell: (info) => info.renderValue(),
   }),
-  columnHelper.accessor((machine) => machine?.api_key?.[0]?.value, {
+  columnHelper.accessor((app) => app?.machine?.[0]?.name, {
+    header: "Machine".toUpperCase(),
+    cell: (info) => info.renderValue(),
+  }),
+  columnHelper.accessor((app) => app?.api_key?.[0]?.value, {
     header: "Api Key".toUpperCase(),
     cell: function Cell(info) {
       const value = info.getValue();
@@ -85,11 +90,11 @@ const machinesColumns = [
       );
     },
   }),
-  columnHelper.accessor((machine) => machine.host_url, {
-    header: "Host URL".toUpperCase(),
+  columnHelper.accessor((app) => app.url, {
+    header: "URL".toUpperCase(),
     cell: (info) => info.renderValue(),
   }),
-  columnHelper.accessor((machine) => machine.id, {
+  columnHelper.accessor((app) => app.id, {
     header: "Actions".toUpperCase(),
     cell: function ActionsCell(info) {
       const [sendingRequest, setSendingRequest] = useState(false);
@@ -100,16 +105,14 @@ const machinesColumns = [
       function handleDelete() {
         setSendingRequest(true);
         const notifId = newNotification(
-          "delete-machine",
-          "Deleting machine...",
+          "delete-app",
+          "Deleting app...",
           "Please hold of for a second, this will be fast.",
         );
 
         axios
           .delete(
-            process.env.NEXT_PUBLIC_API_URL +
-              "/api/machines/" +
-              info.getValue(),
+            process.env.NEXT_PUBLIC_API_URL + "/api/apps/" + info.getValue(),
             {
               withCredentials: true,
             },

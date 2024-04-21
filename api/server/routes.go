@@ -38,12 +38,16 @@ func (s *Server) setRoutes(devMode bool) {
 			return c.JSON(200, "pong")
 		})
 	}
-
 	// ANCHOR - Machines
 	routeMachinesPrivate := s.router.Group("/api/machines", s.jwtMiddleware)
 	routeMachinesPrivate.GET("", s.getMachines)
 	routeMachinesPrivate.POST("", s.postMachines)
 	routeMachinesPrivate.DELETE("/:id", s.deleteMachines)
+	// ANCHOR - Apps
+	routeAppsPrivate := s.router.Group("/api/apps", s.jwtMiddleware)
+	routeAppsPrivate.GET("", s.getApps)
+	routeAppsPrivate.POST("", s.postApps)
+	routeAppsPrivate.DELETE("/:id", s.deleteApps)
 
 	// SECTION - Moderation Routes
 }

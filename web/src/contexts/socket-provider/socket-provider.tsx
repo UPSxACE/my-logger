@@ -1,6 +1,7 @@
 "use client";
 import Socket from "@/socket";
 import { ReactNode, createContext, useEffect, useRef, useState } from "react";
+import ConfigChanged from "./config-changed";
 
 interface ISocketContext {
   socket: Socket | null;
@@ -19,6 +20,7 @@ export const SocketContext = createContext<ISocketContext>(defaultValue);
 export default function SocketProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState(false);
+  const [configUpdated, setConfigUpdated] = useState(false);
   const socket = useRef<Socket | null>(null);
 
   const handleConnect = (e: MessageEvent) => {
@@ -33,6 +35,9 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
     setConnected(false);
     setError(false);
   };
+  const handleConfigUpdate = (e: MessageEvent) => {
+    setConfigUpdated(true);
+  };
 
   useEffect(() => {
     if (socket.current === null) {
@@ -45,11 +50,13 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
     socket.current.on("connect", handleConnect);
     socket.current.on("error", handleError);
     socket.current.on("disconnect", handleDisconnect);
+    socket.current.on("realtime:configupdate", handleConfigUpdate);
 
     return () => {
       socket?.current?.off("connect", handleConnect);
       socket?.current?.off("error", handleError);
       socket?.current?.off("disconnect", handleDisconnect);
+      socket?.current?.off("realtime:configupdate", handleConfigUpdate);
       socket?.current?.close();
     };
   }, []);
@@ -58,6 +65,7 @@ export default function SocketProvider({ children }: { children: ReactNode }) {
     <SocketContext.Provider
       value={{ socket: socket.current, connected, error }}
     >
+      <ConfigChanged opened={configUpdated} />
       {children}
     </SocketContext.Provider>
   );

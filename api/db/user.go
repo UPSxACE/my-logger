@@ -6,7 +6,7 @@ import (
 
 // TODO: add created_at, updated_at, deleted_at, and fill on create account
 type User struct {
-	ID             primitive.ObjectID `json:"id" bson:"_id"`
+	ID             primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Username       string             `json:"username" bson:"username"`
 	Password       string             `json:"password" bson:"password"`
 	Email          string             `json:"email" bson:"email"`

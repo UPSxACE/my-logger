@@ -1,5 +1,5 @@
 "use client";
-import { SocketContext } from "@/contexts/socket-provider";
+import { SocketContext } from "@/contexts/socket-provider/socket-provider";
 import { SocketData } from "@/socket";
 import ApexCharts from "apexcharts";
 import { useContext, useEffect, useRef, useState } from "react";
@@ -8,8 +8,8 @@ import ReactApexChart from "react-apexcharts";
 const X_AXIS_RANGE = 50;
 
 // socket states
-let data: any[] = [];
-let lastIndexHeard = -1;
+// let data: any[] = [];
+// let lastIndexHeard = -1;
 
 export default function HomeCpuChart() {
   const [initialLoad, setInitialLoad] = useState(false);
@@ -20,6 +20,8 @@ export default function HomeCpuChart() {
   // without triggering a re-render on their change
   const requestRef = useRef<any>();
   const previousTimeRef = useRef<any>();
+  const data = useRef<any[]>([]);
+  const lastIndexHeard = useRef<number>(0);
 
   useEffect(() => {
     const updateChart = (messageData: SocketData) => {
@@ -27,31 +29,34 @@ export default function HomeCpuChart() {
       if (
         connected &&
         socket &&
-        messageData.last_heard_index > lastIndexHeard
+        messageData.last_heard_index > lastIndexHeard.current
       ) {
         let dif;
         const negativeIndex =
-          lastIndexHeard === -1 || messageData.last_heard_index === -1;
+          lastIndexHeard.current === -1 || messageData.last_heard_index === -1;
         if (negativeIndex) {
           dif = messageData.chart_data.length;
         }
         if (!negativeIndex) {
-          dif = messageData.last_heard_index - lastIndexHeard;
+          dif = messageData.last_heard_index - lastIndexHeard.current;
         }
         if (dif > 100) {
           dif = 100;
         }
 
-        lastIndexHeard = messageData.last_heard_index;
-        socket?.emit("chart1:update-received", lastIndexHeard);
+        lastIndexHeard.current = messageData.last_heard_index;
+        socket?.emit("chart1:update-received", lastIndexHeard.current);
 
         if (dif > 0) {
-          data = [...data, ...messageData.chart_data.slice(-dif)];
+          data.current = [
+            ...data.current,
+            ...messageData.chart_data.slice(-dif),
+          ];
 
           if (initialLoad) {
             ApexCharts.exec("realtime", "updateSeries", [
               {
-                data,
+                data: data.current,
               },
             ]);
           }
@@ -61,7 +66,7 @@ export default function HomeCpuChart() {
 
     if (connected && socket) {
       const animate: FrameRequestCallback = (time) => {
-        if (!initialLoad && data.length > 0) {
+        if (!initialLoad && data.current.length > 0) {
           setInitialLoad(true);
         }
 
@@ -80,7 +85,7 @@ export default function HomeCpuChart() {
         requestRef.current = requestAnimationFrame(animate);
       };
 
-      socket.emit("chart1:start-listening", lastIndexHeard);
+      socket.emit("realtime:recentusage:startlistening", null);
       socket.on("chart1:update", updateChart);
 
       requestRef.current = requestAnimationFrame(animate);
@@ -92,11 +97,6 @@ export default function HomeCpuChart() {
       }
       socket?.off("chart1:update", updateChart);
       cancelAnimationFrame(requestRef.current);
-
-      // free up memory of unused data
-      if (data.length > 100) {
-        data = data.slice(-100);
-      }
     };
   }, [socket, connected, initialLoad]);
 
@@ -155,6 +155,7 @@ export default function HomeCpuChart() {
     },
   };
 
+  console.log(connected, initialLoad);
   if (!connected || !initialLoad) {
     return null;
   }
@@ -166,7 +167,7 @@ export default function HomeCpuChart() {
       series={[
         {
           name: "Desktops",
-          data: data,
+          data: data.current,
           color: "var(--mantine-primary-color-7)",
         },
       ]}

@@ -7,3 +7,9 @@
 .light-input:focus-within {
   border-color: var(--input-bd-focus);
 }
+
+@media (max-width: 576px) {
+  .max-xs-rotate90 {
+    transform: rotate(90deg) !important;
+  }
+}

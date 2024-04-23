@@ -5,7 +5,7 @@ import (
 )
 
 type App struct {
-	ID              primitive.ObjectID `json:"id" bson:"_id"`
+	ID              primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Name            string             `json:"name" bson:"name"`
 	Url             string             `json:"url" bson:"url"`
 	MachineId       primitive.ObjectID `json:"machine_id" bson:"machine_id"`

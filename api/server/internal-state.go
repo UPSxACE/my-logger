@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/UPSxACE/my-logger/api/db"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -15,10 +15,9 @@ type InternalState struct {
 	ownerRegistered bool
 }
 
-type DocumentInternalOwnerRegistered struct {
-	ID         primitive.ObjectID `json:"id" bson:"_id"`
-	StateName  string             `json:"state_name" bson:"state_name"`
-	StateValue bool               `json:"state_value" bson:"state_value"`
+type InternalOwnerRegistered struct {
+	db.Internal `bson:",inline"`
+	StateValue  bool `json:"state_value" bson:"state_value"`
 }
 
 func (s *Server) setupInternalState() {
@@ -35,7 +34,7 @@ func (s *Server) setupInternalState() {
 		return
 	}
 
-	internalStateOwnerRegistered := &DocumentInternalOwnerRegistered{}
+	internalStateOwnerRegistered := &InternalOwnerRegistered{}
 	err = result.Decode(internalStateOwnerRegistered)
 	if err != nil {
 		log.Fatal(err)

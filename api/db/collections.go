@@ -10,6 +10,7 @@ type Collections struct {
 	Machines           *mongo.Collection
 	ApiKeys            *mongo.Collection
 	Apps               *mongo.Collection
+	ResourcesLog       *mongo.Collection
 }
 
 // TODO: create collaction wrappers and make aggregation util functions to make it easier to populate relationships

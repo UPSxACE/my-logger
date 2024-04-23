@@ -5,7 +5,7 @@ import (
 )
 
 type ApiKey struct {
-	ID          primitive.ObjectID  `json:"id" bson:"_id"`
+	ID          primitive.ObjectID  `json:"id" bson:"_id,omitempty"`
 	Value       string              `json:"value" bson:"value"`
 	TypeOfToken string              `json:"type_of_token" bson:"type_of_token"`
 	CreatedAt   primitive.DateTime  `json:"created_at" bson:"created_at"`

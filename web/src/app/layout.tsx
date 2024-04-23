@@ -2,7 +2,7 @@ import { config } from "@/auth";
 import SessionContext from "@/components/session-context";
 import SingleThemeScript from "@/components/single-theme-script";
 import QueryClientProvider from "@/contexts/query-client-provider";
-import SocketProvider from "@/contexts/socket-provider";
+import SocketProvider from "@/contexts/socket-provider/socket-provider";
 import {
   AppShellMain,
   ColorSchemeScript,

@@ -2,249 +2,202 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
-	"math/rand"
 	"sync"
-	"time"
 
+	"github.com/UPSxACE/my-logger/api/utils"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 )
-
-type FakeChartDataCircularBuffer struct {
-	data        [100]ChartData
-	head        int // index of the oldest element
-	tail        int // index where the next element will be inserted
-	full        bool
-	lastUpdated time.Time
-	lastIndex   int // ChartData.X is considered the "index"
-}
-
-func (cb *FakeChartDataCircularBuffer) Length() int {
-	if cb.full {
-		return len(cb.data)
-	}
-	if cb.tail >= cb.head {
-		return cb.tail - cb.head
-	}
-	return len(cb.data) - cb.head + cb.tail
-}
-
-func (cb *FakeChartDataCircularBuffer) Push(item ChartData) {
-	cb.lastUpdated = time.Now()
-	cb.lastIndex = item.X
-	//
-
-	cb.data[cb.tail] = item
-	cb.tail = (cb.tail + 1) % len(cb.data)
-	if cb.full {
-		cb.head = (cb.head + 1) % len(cb.data)
-	}
-	cb.full = cb.tail == cb.head
-}
-
-func (cb *FakeChartDataCircularBuffer) get(index int) ChartData {
-	if index < 0 || index >= len(cb.data) {
-		panic("Index out of range")
-	}
-	return cb.data[(cb.head+index)%len(cb.data)]
-}
-
-func (cb *FakeChartDataCircularBuffer) GetSince(lastIndexHeard int) (data []ChartData, lastIndex int, err error) {
-	var dif int
-
-	if lastIndexHeard < 0 {
-		dif = globalBuffer.Length()
-	}
-
-	if lastIndexHeard >= 0 {
-		dif = cb.lastIndex - lastIndexHeard
-		if dif < 0 {
-			return nil, -1, errors.New("bad request")
-		}
-		if dif > 100 {
-			dif = 100
-		}
-	}
-
-	chartData := []ChartData{}
-	for i := 0; i < dif; i++ {
-		chartData = append(chartData, cb.get(cb.Length()-dif+i))
-	}
-
-	lastX := -1
-	lenChartData := len(chartData)
-	if lenChartData > 0 {
-		lastX = chartData[lenChartData-1].X
-	}
-
-	return chartData, lastX, nil
-}
-
-var globalBuffer = FakeChartDataCircularBuffer{}
-
-// -----------------------------------------
-type ChartData struct {
-	X int `json:"x"`
-	Y int `json:"y"`
-}
 
 type Message struct {
 	Name string `json:"name"`
 	Data any    `json:"data"`
 }
 
-func randomIntBetween(min int, max int) int {
-	return (rand.Intn(max-min+1) + min)
+type ConnectionSubscription struct {
+	id                       string
+	mu                       sync.Mutex
+	ws                       *websocket.Conn
+	realtimeStatsConfig      RealtimeConfig
+	connected                bool
+	listeningRecentUsage     bool
+	listeningGeneralStats    bool
+	listeningMostApiRequests bool
+	listeningTotalRequests   bool
+	workerErr                error
+}
+
+func (cs *ConnectionSubscription) GetId() string {
+	return cs.id
+}
+
+func (cs *ConnectionSubscription) WriteTextMessage(message []byte) {
+	err := cs.ws.WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			cs.connected = false
+			return
+		}
+		cs.connected = false
+		return
+	}
+}
+
+func (cs *ConnectionSubscription) ReceiveUpdate(update RealtimeUpdate) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
+	if update.ConfigUpdate != nil {
+		msg, err := json.Marshal(&Message{
+			Name: "realtime:configupdate",
+			Data: nil,
+		})
+		if err != nil {
+			cs.workerErr = err
+			cs.connected = false
+			return
+		}
+		cs.WriteTextMessage(msg)
+	}
+	if update.GeneralStatsUpdate != nil {
+		//FIXME
+	}
+	if update.MostApiRequestsUpdate != nil {
+		//FIXME
+	}
+	if update.RecentUsageUpdate != nil && cs.listeningRecentUsage {
+		for _, id := range cs.realtimeStatsConfig.RealtimeUsageMachinesToTrack {
+			if update.RecentUsageUpdate.MachineId == id {
+				msg, err := json.Marshal(&Message{
+					Name: "realtime:recentusage:partialupdate",
+					Data: echo.Map{
+						"machine_id": update.RecentUsageUpdate.MachineId,
+						"new_data": echo.Map{
+							"cpu": echo.Map{
+								"x": update.RecentUsageUpdate.UsageStats.CpuUsage.Time,
+								"y": update.RecentUsageUpdate.UsageStats.CpuUsage.CpuUsage,
+							},
+							"ram": echo.Map{
+								"x": update.RecentUsageUpdate.UsageStats.RamUsage.Time,
+								"y": update.RecentUsageUpdate.UsageStats.RamUsage.RamUsage,
+							},
+						},
+					}})
+				if err != nil {
+					cs.workerErr = err
+					cs.connected = false
+					return
+				}
+				cs.WriteTextMessage(msg)
+			}
+		}
+	}
+	if update.TotalRequestsUpdate != nil {
+		//FIXME
+	}
 }
 
 func (s *Server) getWs(c echo.Context) error {
-	// fake first initialization
-	if globalBuffer.Length() == 0 {
-		for i := 0; i < 80; i++ {
-			lastIndex := globalBuffer.lastIndex
-			newIndex := lastIndex + 1
-			globalBuffer.Push(ChartData{newIndex, randomIntBetween(25, 90)})
-		}
-	}
-
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		return err
 	}
 	defer ws.Close()
 
-	// connection states
-	listeningToChartUpdates := false
-	lastHeardIndex := -1
-	lastTimeHeard := time.Time{}
+	// connection state
+	connectionSubscription := &ConnectionSubscription{
+		id:                       utils.GenerateUuid(),
+		ws:                       ws,
+		connected:                true,
+		realtimeStatsConfig:      s.realTimeStatsSubject.Config,
+		listeningRecentUsage:     false,
+		listeningGeneralStats:    false,
+		listeningMostApiRequests: false,
+		listeningTotalRequests:   false,
+	}
 
-	// fake state
-	lastTick := time.Now()
+	s.realTimeStatsSubject.Subscribe(connectionSubscription)
+	defer s.realTimeStatsSubject.Unsubscribe(connectionSubscription.GetId())
 
-	var workerErr error
+	for connectionSubscription.connected {
+		// Read messages
 
-	readWorker := func(stop chan struct{}, wg *sync.WaitGroup) {
-		defer wg.Done()
-
-		for {
-			select {
-			case <-stop:
-				return
-			default:
-				msgType, msg, err := ws.ReadMessage()
-				if err != nil {
-					if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-
-						stop <- struct{}{}
-						return
-					}
-
-					stop <- struct{}{}
+		msgType, msg, err := ws.ReadMessage()
+		func() {
+			connectionSubscription.mu.Lock()
+			defer connectionSubscription.mu.Unlock()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+					connectionSubscription.connected = false
 					return
 				}
-				if msgType == websocket.TextMessage && len(msg) != 0 {
-					msgJson := &Message{}
-					err := json.Unmarshal(msg, msgJson)
-					if err != nil {
-						workerErr = err
-						c.Logger().Error(err)
-						ws.Close()
-
-						stop <- struct{}{}
-						return
-					}
-
-					switch msgJson.Name {
-					case "chart1:start-listening":
-						index, ok := msgJson.Data.(float64)
-						if ok && index > 0 && int(index) < globalBuffer.lastIndex {
-							lastHeardIndex = int(index)
-						} else {
-							lastHeardIndex = -1
-						}
-						listeningToChartUpdates = true
-					case "chart1:stop-listening":
-						listeningToChartUpdates = false
-					case "chart1:update-received":
-						index, ok := msgJson.Data.(float64)
-						if ok && index > 0 && int(index) > lastHeardIndex {
-							lastHeardIndex = int(index)
-						}
-					}
-				}
-			}
-		}
-
-	}
-
-	writeWorker := func(stop chan struct{}, wg *sync.WaitGroup) {
-		defer wg.Done()
-
-		for {
-			select {
-			case <-stop:
+				connectionSubscription.connected = false
 				return
-			default:
-				// fake update each 5 seconds
-				if time.Since(lastTick) > 5*time.Second {
-					lastTick = time.Now()
-					lastIndex := globalBuffer.lastIndex
-					newIndex := lastIndex + 1
-					globalBuffer.Push(ChartData{newIndex, randomIntBetween(25, 90)})
+			}
+			if msgType == websocket.TextMessage && len(msg) != 0 {
+				msgJson := &Message{}
+				err := json.Unmarshal(msg, msgJson)
+				if err != nil {
+					connectionSubscription.workerErr = err
+					connectionSubscription.connected = false
+					return
 				}
 
-				if listeningToChartUpdates && lastTimeHeard.Before(globalBuffer.lastUpdated) {
-					lastTimeHeard = time.Now()
-					newChartData, lastX, err := globalBuffer.GetSince(lastHeardIndex)
-					if err != nil {
-						workerErr = err
-						c.Logger().Error(err)
-						ws.Close()
-						stop <- struct{}{}
-						return
-					}
+				switch msgJson.Name {
+				//case messages
+				case "realtime:recentusage:startlistening":
+					fulldata := echo.Map{}
 
-					msg, err := json.Marshal(&Message{Name: "chart1:update", Data: echo.Map{
-						"last_heard_index": lastX,
-						"chart_data":       newChartData,
-					}})
-					if err != nil {
-						workerErr = err
-						c.Logger().Error(err)
-						ws.Close()
-						stop <- struct{}{}
-						return
-					}
+					for machineId, buffer := range s.realTimeStatsSubject.RecentUsage {
+						for _, machineId_ := range s.realTimeStatsSubject.Config.RealtimeUsageMachinesToTrack {
+							if machineId == machineId_ {
+								all := buffer.GetAll()
 
-					err = ws.WriteMessage(websocket.TextMessage, msg)
-					if err != nil {
-						if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-							stop <- struct{}{}
-							return
+								cpu := []echo.Map{}
+								ram := []echo.Map{}
+
+								for _, usageStat := range all {
+									cpu = append(cpu, echo.Map{
+										"x": usageStat.CpuUsage.Time,
+										"y": usageStat.CpuUsage.CpuUsage,
+									})
+									ram = append(ram, echo.Map{
+										"x": usageStat.RamUsage.Time,
+										"y": usageStat.RamUsage.RamUsage,
+									})
+								}
+
+								fulldata[machineId] = echo.Map{
+									"cpu": cpu,
+									"ram": ram,
+								}
+
+								break
+							}
 						}
-						stop <- struct{}{}
+					}
+
+					msg, err := json.Marshal(&Message{
+						Name: "realtime:recentusage:fullupdate",
+						Data: fulldata,
+					})
+
+					if err != nil {
+						connectionSubscription.workerErr = err
+						connectionSubscription.connected = false
 						return
 					}
+
+					connectionSubscription.WriteTextMessage(msg)
+					return
 				}
 			}
-		}
-
+		}()
 	}
 
-	stop := make(chan struct{})
-	defer close(stop)
+	if connectionSubscription.workerErr != nil {
+		c.Logger().Error(err)
+	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// workers
-	// NOTE: Possible race condition between the workers? (for example, when reading lastHeardIndex)
-	go readWorker(stop, &wg)
-	go writeWorker(stop, &wg)
-
-	// Wait for both workers to finish
-	wg.Wait()
-
-	return workerErr
+	return connectionSubscription.workerErr
 }

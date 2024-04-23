@@ -175,9 +175,11 @@ func (s *Server) postConfirmEmailRoute(c echo.Context) error {
 		return echo.ErrInternalServerError
 	}
 
-	ownerRegistered := &DocumentInternalOwnerRegistered{
-		ID:         primitive.NewObjectID(),
-		StateName:  "ownerRegistered",
+	ownerRegistered := &InternalOwnerRegistered{
+		Internal: db.Internal{
+			ID:        primitive.NewObjectID(),
+			StateName: "ownerRegistered",
+		},
 		StateValue: true,
 	}
 

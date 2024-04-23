@@ -22,13 +22,14 @@ var (
 )
 
 type Server struct {
-	router         *echo.Echo
-	tokenBlacklist sessionRevokeList
-	jwtConfig      echojwt.Config
-	Collections    db.Collections
-	validator      *validator.Validate // use a single instance of Validate, it caches struct info
-	internal       InternalState
-	emailTemplates *template.Template
+	router               *echo.Echo
+	tokenBlacklist       sessionRevokeList
+	jwtConfig            echojwt.Config
+	Collections          db.Collections
+	validator            *validator.Validate // use a single instance of Validate, it caches struct info
+	internal             InternalState
+	emailTemplates       *template.Template
+	realTimeStatsSubject *RealtimeStatsSubject
 }
 
 func NewServer(devMode bool) *Server {
@@ -48,6 +49,7 @@ func NewServer(devMode bool) *Server {
 	server.setupEmailTemplates()
 	server.setupValidator()
 	server.setupDatabase(devMode)
+	server.setupRealtimeStatsSubject()
 	server.setupJwt()
 	server.setRoutes(devMode)
 	server.setupInternalState()

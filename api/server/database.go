@@ -43,6 +43,7 @@ func (s *Server) setupDatabase(devMode bool) {
 	apiKeysCollection := client.Database(dbName).Collection("api-keys")
 	machinesCollection := client.Database(dbName).Collection("machines")
 	appsCollection := client.Database(dbName).Collection("apps")
+	resourcesLogCollection := client.Database(dbName).Collection("resources-logs")
 
 	s.Collections = db.Collections{
 		Users:              usersCollection,
@@ -52,6 +53,7 @@ func (s *Server) setupDatabase(devMode bool) {
 		ApiKeys:            apiKeysCollection,
 		Machines:           machinesCollection,
 		Apps:               appsCollection,
+		ResourcesLog:       resourcesLogCollection,
 	}
 
 	fmt.Println("Connected to MongoDB!")

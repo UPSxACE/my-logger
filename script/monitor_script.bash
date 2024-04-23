@@ -1,4 +1,5 @@
 API_ENDPOINT="http://example.com/test?token=ffff"
+API_KEY="your_api_key_here"
 
 while true; do
     memory_usage=$(free | awk 'NR==2{printf "%.2f", $3*100/$2}')
@@ -15,9 +16,10 @@ while true; do
     done < <(ifconfig -a | awk '/^[a-zA-Z0-9]+:/ {print substr($1, 1, length($1)-1)}')  # Get all interface names
 
     network_traffic="{\"rx\": $network_traffic_rx, \"tx\": $network_traffic_tx}"
+    current_time=$(date +%s)  # Get current timestamp
         
-    json_data="{\"memory_usage\": $memory_usage, \"disk_usage\": $disk_usage, \"cpu_usage\": $cpu_usage, \"network\": $network_traffic}"
-    curl -X POST -H "Content-Type: application/json" -d "$json_data" "$API_ENDPOINT"
+    json_data="{\"time\": $current_time, \"memory_usage\": $memory_usage, \"disk_usage\": $disk_usage, \"cpu_usage\": $cpu_usage, \"network\": $network_traffic}"
+    curl -X POST -H "Content-Type: application/json" -H "X-Api-Key: $API_KEY" -d "$json_data" "$API_ENDPOINT"
 
     sleep 5
 done

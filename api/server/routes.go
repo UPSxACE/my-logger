@@ -38,6 +38,10 @@ func (s *Server) setRoutes(devMode bool) {
 			return c.JSON(200, "pong")
 		})
 	}
+	// ANCHOR - Config
+	routeConfigPrivate := s.router.Group("/api/config", s.jwtMiddleware)
+	routeConfigPrivate.GET("/realtime", s.getRealtimeConfig)
+	routeConfigPrivate.POST("/realtime/machines-tracking", s.postRealtimeConfigMachinesTracking)
 	// ANCHOR - Machines
 	routeMachinesPrivate := s.router.Group("/api/machines", s.jwtMiddleware)
 	routeMachinesPrivate.GET("", s.getMachines)
@@ -48,6 +52,11 @@ func (s *Server) setRoutes(devMode bool) {
 	routeAppsPrivate.GET("", s.getApps)
 	routeAppsPrivate.POST("", s.postApps)
 	routeAppsPrivate.DELETE("/:id", s.deleteApps)
+	// ANCHOR - Log
+	// NOTE: auth by x-api-key header, not jwt
+	routeLogPrivate := s.router.Group("/api/log")
+	routeLogPrivate.POST("/machine", s.postLogMachine)
+	routeLogPrivate.POST("/app", s.postLogMachine)
 
 	// SECTION - Moderation Routes
 }

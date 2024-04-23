@@ -11,7 +11,7 @@ const guestRoutes: string[] = [
   "/forgot-password",
   "/recover-account",
 ];
-const privateRoutes: string[] = ["/machines", "/apps"];
+const privateRoutes: string[] = ["/machines", "/apps", "/config"];
 
 export default withAuth(
   // `withAuth` augments your `Request` with the user's token.

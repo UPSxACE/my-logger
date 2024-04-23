@@ -11,6 +11,7 @@ import {
 import { GiBrassEye } from "react-icons/gi";
 import { GoChevronLeft } from "react-icons/go";
 import { GrAppsRounded } from "react-icons/gr";
+import { IoSettingsOutline } from "react-icons/io5";
 import { LiaKeySolid } from "react-icons/lia";
 import SidebarButton from "./_components/sidebar-button";
 import { AppShellContext } from "./app-shell";
@@ -66,6 +67,9 @@ export default function AppShellSidebar() {
           </SidebarButton>
           <SidebarButton Icon={<LiaKeySolid />} navlink="api-keys">
             Api Keys
+          </SidebarButton>
+          <SidebarButton Icon={<IoSettingsOutline />} navlink="config">
+            Settings
           </SidebarButton>
           <SidebarButton
             active={!navbarCollapsed}

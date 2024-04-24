@@ -3,6 +3,7 @@ import SessionContext from "@/components/session-context";
 import SingleThemeScript from "@/components/single-theme-script";
 import QueryClientProvider from "@/contexts/query-client-provider";
 import SocketProvider from "@/contexts/socket-provider/socket-provider";
+import { WebVitals } from "@/webvitals";
 import {
   AppShellMain,
   ColorSchemeScript,
@@ -81,6 +82,7 @@ export default async function RootLayout({
             </MantineProvider>
           </QueryClientProvider>
         </SessionContext>
+        <WebVitals />
       </body>
     </html>
   );

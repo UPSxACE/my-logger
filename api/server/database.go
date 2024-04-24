@@ -44,16 +44,18 @@ func (s *Server) setupDatabase(devMode bool) {
 	machinesCollection := client.Database(dbName).Collection("machines")
 	appsCollection := client.Database(dbName).Collection("apps")
 	resourcesLogCollection := client.Database(dbName).Collection("resources-logs")
+	analyticsCollection := client.Database(dbName).Collection("analytics")
 
 	s.Collections = db.Collections{
-		Users:              usersCollection,
-		Internal:           internalCollection,
-		ConfirmationTokens: confirmationTokensCollection,
-		RecoveryTokens:     recoveryTokensCollection,
-		ApiKeys:            apiKeysCollection,
-		Machines:           machinesCollection,
-		Apps:               appsCollection,
-		ResourcesLog:       resourcesLogCollection,
+		Users:               usersCollection,
+		Internal:            internalCollection,
+		ConfirmationTokens:  confirmationTokensCollection,
+		RecoveryTokens:      recoveryTokensCollection,
+		ApiKeys:             apiKeysCollection,
+		Machines:            machinesCollection,
+		Apps:                appsCollection,
+		ResourcesLog:        resourcesLogCollection,
+		AnalyticsCollection: analyticsCollection,
 	}
 
 	fmt.Println("Connected to MongoDB!")

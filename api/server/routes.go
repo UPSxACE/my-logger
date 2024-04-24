@@ -16,6 +16,8 @@ func (s *Server) setRoutes(devMode bool) {
 	s.router.GET("/ping", func(c echo.Context) error {
 		return c.JSON(200, "pong")
 	})
+	// ANCHOR - Analytics
+	s.router.POST("/api/analytics", s.postAnalytics)
 
 	// SECTION - Guest Routes
 	// ANCHOR - Auth

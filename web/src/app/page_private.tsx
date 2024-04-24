@@ -3,6 +3,7 @@
 import BasicCard from "@/components/dashboard-ui/basic-card";
 import CalendarCard from "@/components/dashboard-ui/calendar-card";
 import ChartCard from "@/components/dashboard-ui/chart-card";
+import DynamicChartCard from "@/components/dashboard-ui/dynamic-chart-card";
 import StatCard from "@/components/dashboard-ui/stat-card";
 import TotalRequests from "@/components/info/total-requests";
 import dynamic from "next/dynamic";
@@ -77,13 +78,9 @@ export default function HomePagePrivate() {
                 />
               }
             />
-            <ChartCard
-              title="Machine 1 Cpu Usage"
-              className="col-span-4"
-              rightPad
-            >
+            <DynamicChartCard className={"col-span-4"} rightPad="w-[107%]">
               <HomeCpuChart />
-            </ChartCard>
+            </DynamicChartCard>
           </div>
         </section>
         <section id="general-info" className="flex flex-col gap-4">

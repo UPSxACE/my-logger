@@ -77,7 +77,7 @@ func (rs *RecentUsageCircularBuffer) GetAll() []*RecentUsageStats {
 
 	data := make([]*RecentUsageStats, length)
 	for i := 0; i < length; i++ {
-		data = append(data, rs.Get(i))
+		data[i] = rs.Get(i)
 	}
 
 	return data
@@ -135,9 +135,9 @@ func (s *Server) setupRealtimeStatsSubject() {
 		realtimeSubject.RecentUsage[id] = NewResourcesCircularBuffer()
 
 		result, err := s.Collections.ResourcesLog.Find(ctx, bson.M{
-			"_id": machine.ID,
+			"machine_id": machine.ID,
 		}, options.Find().SetLimit(100).SetSort(bson.M{
-			"timestamp": -1,
+			"timestamp": 1,
 		}))
 		if err != nil {
 			log.Fatal(err)

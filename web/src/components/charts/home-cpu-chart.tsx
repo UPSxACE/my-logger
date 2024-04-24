@@ -1,18 +1,25 @@
 "use client";
 import { SocketContext } from "@/contexts/socket-provider/socket-provider";
 import { SocketData } from "@/socket";
+import { Loader, Select } from "@mantine/core";
+import { useQuery } from "@tanstack/react-query";
 import ApexCharts from "apexcharts";
+import axios from "axios";
+import dayjs from "dayjs";
 import { useContext, useEffect, useRef, useState } from "react";
 import ReactApexChart from "react-apexcharts";
-
-const X_AXIS_RANGE = 50;
-
-// socket states
-// let data: any[] = [];
-// let lastIndexHeard = -1;
+import { BsExclamationCircleFill } from "react-icons/bs";
+import {
+  DynamicRightCornerContext,
+  DynamicTitleContext,
+} from "../dashboard-ui/dynamic-chart-card";
 
 export default function HomeCpuChart() {
-  const [initialLoad, setInitialLoad] = useState(false);
+  const [selectedMachine, setSelectedMachine] = useState<null | string>(null);
+  const [dynamicTitle, setDynamicTitle] = useContext(DynamicTitleContext);
+  const [rightCornerElement, setRightCornerElement] = useContext(
+    DynamicRightCornerContext,
+  );
 
   const { socket, connected, error } = useContext(SocketContext);
 
@@ -20,61 +27,125 @@ export default function HomeCpuChart() {
   // without triggering a re-render on their change
   const requestRef = useRef<any>();
   const previousTimeRef = useRef<any>();
-  const data = useRef<any[]>([]);
-  const lastIndexHeard = useRef<number>(0);
+  const data = useRef<null | Record<string, any>>(null);
+  const hasUpdates = useRef<boolean>(false);
+  const [firstLoad, setFirstLoad] = useState(true);
+
+  const {
+    error: dictionary_error,
+    data: dictionary_data,
+    isLoading: dictionary_isLoading,
+  } = useQuery({
+    queryKey: ["machine-dictionary"],
+    queryFn: () =>
+      axios
+        .get(process.env.NEXT_PUBLIC_API_URL + "/api/machines", {
+          withCredentials: true,
+        })
+        .then((res) => {
+          const dictionary: Record<string, string> = {};
+
+          res?.data?.forEach((machine: any) => {
+            dictionary[machine.id] = machine.name;
+          });
+
+          return dictionary;
+        }),
+    retry: false,
+    staleTime: Infinity,
+  });
 
   useEffect(() => {
-    const updateChart = (messageData: SocketData) => {
-      // update
-      if (
-        connected &&
-        socket &&
-        messageData.last_heard_index > lastIndexHeard.current
-      ) {
-        let dif;
-        const negativeIndex =
-          lastIndexHeard.current === -1 || messageData.last_heard_index === -1;
-        if (negativeIndex) {
-          dif = messageData.chart_data.length;
-        }
-        if (!negativeIndex) {
-          dif = messageData.last_heard_index - lastIndexHeard.current;
-        }
-        if (dif > 100) {
-          dif = 100;
-        }
-
-        lastIndexHeard.current = messageData.last_heard_index;
-        socket?.emit("chart1:update-received", lastIndexHeard.current);
-
-        if (dif > 0) {
-          data.current = [
-            ...data.current,
-            ...messageData.chart_data.slice(-dif),
-          ];
-
-          if (initialLoad) {
-            ApexCharts.exec("realtime", "updateSeries", [
-              {
-                data: data.current,
-              },
-            ]);
-          }
-        }
+    const updateChartFull = (messageData: SocketData) => {
+      if (!dictionary_data) {
+        return;
       }
+
+      if (messageData.default === "") {
+        setSelectedMachine("");
+        return;
+      }
+
+      const selected = selectedMachine || messageData.default;
+      data.current = messageData.data;
+      hasUpdates.current = true;
+
+      setSelectedMachine(selected);
+      setDynamicTitle(dictionary_data[selected] + " Cpu Usage");
+      setRightCornerElement(function SelectMachine() {
+        return (
+          <Select
+            clearable={false}
+            value={selectedMachine}
+            onChange={(value) => {
+              setFirstLoad(true);
+              setSelectedMachine(value);
+            }}
+            data={Object.keys(data.current || {}).map((key) => ({
+              label: dictionary_data[key],
+              value: key,
+            }))}
+          />
+        );
+      });
     };
 
-    if (connected && socket) {
-      const animate: FrameRequestCallback = (time) => {
-        if (!initialLoad && data.current.length > 0) {
-          setInitialLoad(true);
-        }
+    const updateChartPartial = (messageData: SocketData) => {
+      if (selectedMachine === null) {
+        return;
+      }
 
+      if (data.current === null) {
+        data.current = {};
+      }
+      if (data.current?.[selectedMachine] === null) {
+        data.current[selectedMachine] = { cpu: [], ram: [] };
+      }
+
+      data.current[selectedMachine].cpu = [
+        ...data.current[selectedMachine].cpu,
+        messageData.new_data.cpu,
+      ];
+      hasUpdates.current = true;
+    };
+
+    if (connected && socket && dictionary_data) {
+      const animate: FrameRequestCallback = (time) => {
         if (previousTimeRef.current != undefined) {
           const deltaTime = time - previousTimeRef.current;
 
           if (deltaTime >= 1000) {
-            // NOTE: I could animate chart here instead of updateChart function
+            if (hasUpdates.current && data.current !== null) {
+              hasUpdates.current = false;
+
+              // ApexCharts.exec(
+              //   "realtime",
+              //   "updateOptions",
+              //   [
+              //     {
+              //       xaxis: {
+              //         type: "datetime",
+              //         range: 30000000,
+              //         labels: {},
+              //       },
+              //     },
+              //   ],
+              //   firstLoad ? false : true,
+              // );
+
+              ApexCharts.exec(
+                "realtime",
+                "updateSeries",
+                [
+                  {
+                    data: data.current?.[selectedMachine || ""]?.cpu || [],
+                  },
+                ],
+                firstLoad ? false : true,
+              );
+
+              if (firstLoad) setFirstLoad(false);
+            }
 
             previousTimeRef.current = time;
           }
@@ -86,7 +157,8 @@ export default function HomeCpuChart() {
       };
 
       socket.emit("realtime:recentusage:startlistening", null);
-      socket.on("chart1:update", updateChart);
+      socket.on("realtime:recentusage:fullupdate", updateChartFull);
+      socket.on("realtime:recentusage:partialupdate", updateChartPartial);
 
       requestRef.current = requestAnimationFrame(animate);
     }
@@ -95,10 +167,19 @@ export default function HomeCpuChart() {
       if (connected && socket) {
         socket.emit("chart1:stop-listening", null);
       }
-      socket?.off("chart1:update", updateChart);
+      socket?.off("realtime:recentusage:fullupdate", updateChartFull);
+      socket?.off("realtime:recentusage:partialupdate", updateChartPartial);
       cancelAnimationFrame(requestRef.current);
     };
-  }, [socket, connected, initialLoad]);
+  }, [
+    socket,
+    connected,
+    dictionary_data,
+    selectedMachine,
+    setDynamicTitle,
+    firstLoad,
+    setRightCornerElement,
+  ]);
 
   const options: ApexCharts.ApexOptions = {
     // responsive: [],
@@ -135,16 +216,33 @@ export default function HomeCpuChart() {
     stroke: {
       curve: "smooth",
     },
-    // title: {
-    //   text: "Dynamic Updating Chart",
-    //   align: "left",
-    // },
     markers: {
       size: 0,
     },
+    tooltip: {
+      x: {
+        format: "dd MMMM HH:mm",
+        formatter(timestamp, opts) {
+          return dayjs(timestamp || 0).format("DD MMMM HH:mm");
+        },
+      },
+      y: {
+        formatter(val, opts) {
+          return val + "%";
+        },
+      },
+    },
     xaxis: {
-      type: "numeric",
-      range: X_AXIS_RANGE,
+      type: "datetime",
+      range: 30000000, // 5 minutes * 100
+      // stepSize: 3000,
+      // tickAmount: 100,
+      tickAmount: 25,
+      labels: {
+        formatter: function (val, timestamp) {
+          return dayjs(timestamp || 0).format("HH:mm");
+        },
+      },
     },
     yaxis: {
       min: 0,
@@ -155,25 +253,53 @@ export default function HomeCpuChart() {
     },
   };
 
-  console.log(connected, initialLoad);
-  if (!connected || !initialLoad) {
-    return null;
+  // data empty ....
+  if (selectedMachine === "") {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8">
+        <BsExclamationCircleFill size={120} className="text-mantine-cyan-6" />
+        <h1 className="m-0 text-center text-2xl font-medium text-black">
+          No machines to track
+        </h1>
+        <p className="m-0 text-center text-base text-gray-600">
+          Please configure the machines to be tracked in real time in the app
+          settings page.
+        </p>
+      </div>
+    );
   }
 
+  const notReady =
+    !connected ||
+    !dynamicTitle ||
+    error ||
+    dictionary_isLoading ||
+    dictionary_error;
+
   return (
-    <ReactApexChart
-      // className="h-full"
-      options={options}
-      series={[
-        {
-          name: "Desktops",
-          data: data.current,
-          color: "var(--mantine-primary-color-7)",
-        },
-      ]}
-      type="area"
-      height={"100%"}
-      width={"100%"}
-    />
+    <>
+      {(notReady || firstLoad) && (
+        <div
+          key={0}
+          className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8 opacity-100"
+        >
+          <Loader />
+        </div>
+      )}
+      <ReactApexChart
+        // className="h-full"
+        options={options}
+        series={[
+          {
+            name: "Cpu Usage",
+            data: [],
+            color: "var(--mantine-primary-color-7)",
+          },
+        ]}
+        type="area"
+        height={"100%"}
+        width={"100%"}
+      />
+    </>
   );
 }

@@ -110,7 +110,6 @@ export default function ConfigPage() {
 
   function handleSubmit() {
     setState((state) => ({ ...state, sendingRequest: true }));
-    // FIXME: notifications + page lock when update + socket retry?
 
     const notificationId = newNotification(
       "update-realtime-tracking",

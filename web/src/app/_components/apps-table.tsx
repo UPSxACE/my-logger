@@ -19,7 +19,7 @@ export interface App {
   name: string;
   api_key: { value: string }[];
   url: string;
-  machine: any; //FIXME
+  machine: any; // TODO: give a proper type to this
 }
 
 export function getAppsTableConfig(

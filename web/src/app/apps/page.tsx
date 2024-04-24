@@ -37,7 +37,7 @@ export default function AppsPage() {
         .then((res) => res.data),
   });
 
-  const table = useReactTable(getAppsTableConfig(data, refetch)); //FIXME
+  const table = useReactTable(getAppsTableConfig(data, refetch));
 
   const form = useForm({
     initialValues: {

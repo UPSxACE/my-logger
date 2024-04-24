@@ -146,6 +146,7 @@ func (s *Server) getWs(c echo.Context) error {
 				switch msgJson.Name {
 				//case messages
 				case "realtime:recentusage:startlistening":
+					connectionSubscription.listeningRecentUsage = true
 					fulldata := echo.Map{}
 
 					for machineId, buffer := range s.realTimeStatsSubject.RecentUsage {
@@ -177,9 +178,17 @@ func (s *Server) getWs(c echo.Context) error {
 						}
 					}
 
+					var defaultMachine string
+					if len(s.realTimeStatsSubject.Config.RealtimeUsageMachinesToTrack) > 0 {
+						defaultMachine = s.realTimeStatsSubject.Config.RealtimeUsageMachinesToTrack[0]
+					}
+
 					msg, err := json.Marshal(&Message{
 						Name: "realtime:recentusage:fullupdate",
-						Data: fulldata,
+						Data: echo.Map{
+							"default": defaultMachine,
+							"data":    fulldata,
+						},
 					})
 
 					if err != nil {
@@ -191,6 +200,7 @@ func (s *Server) getWs(c echo.Context) error {
 					connectionSubscription.WriteTextMessage(msg)
 					return
 				}
+				//FIXME case stop
 			}
 		}()
 	}

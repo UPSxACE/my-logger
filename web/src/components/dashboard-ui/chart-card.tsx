@@ -11,7 +11,7 @@ export default function ChartCard({
   bottomFix,
   square,
 }: {
-  title: string;
+  title?: string;
   height?: number | string;
   className?: string;
   children: ReactNode;
@@ -33,7 +33,7 @@ export default function ChartCard({
         className,
       )}
     >
-      <h1 className="m-0 text-lg">{title}</h1>
+      {title && <h1 className="m-0 text-lg">{title}</h1>}
       <div
         className={twMerge(
           "relative  w-full flex-1 overflow-hidden",

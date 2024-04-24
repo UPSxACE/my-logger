@@ -54,10 +54,18 @@ export default class Socket {
   // error handles an error on a websocket.
   error(ev: Event) {
     console.log("websocket error: ", ev);
+    // try {
+    //   // console.log("websocket error: ", ev);
+    //   console.log(this.ee);
+    //   this.ee.emit("error", ev);
+    // } catch (emitErr) {
+    //   console.log("EMIT ERR:", emitErr);
+    // }
   }
 
   // emit sends a message on a websocket.
   emit(name: string, data: any) {
+    console.log("EMIT:", name);
     const message = JSON.stringify({ name, data });
     this.ws.send(message);
   }

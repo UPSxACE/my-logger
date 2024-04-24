@@ -12,7 +12,7 @@ export default function useRequestNotification() {
       id: notificationId,
       title,
       message,
-      icon: <Loader color="blue.9" size={30} />,
+      icon: <Loader bg="white" color="blue.9" size={30} />,
       withCloseButton: false,
       autoClose: false,
     });
@@ -47,5 +47,39 @@ export default function useRequestNotification() {
     });
   }
 
-  return { newNotification, updateToSuccess, updateToFailed };
+  function newFatalNotification(id: string, title: string, message: string) {
+    notifications.show({
+      id: id,
+      title: title,
+      message: message,
+      icon: <FaTimesCircle size={30} color="red" />,
+      classNames: {
+        icon: "bg-white mt-1 mr-3",
+      },
+      withCloseButton: false,
+      autoClose: false,
+    });
+  }
+
+  function updateToFatal(id: string, title: string, message: string) {
+    notifications.update({
+      id: id,
+      title: title,
+      message: message,
+      icon: <FaTimesCircle size={30} color="red" />,
+      classNames: {
+        icon: "bg-white mt-1 mr-3",
+      },
+      withCloseButton: false,
+      autoClose: false,
+    });
+  }
+
+  return {
+    newNotification,
+    updateToSuccess,
+    updateToFailed,
+    updateToFatal,
+    newFatalNotification,
+  };
 }

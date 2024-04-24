@@ -51,7 +51,8 @@ export default function HomeCpuChart() {
 
           return dictionary;
         }),
-    retry: false,
+    retry: true,
+    retryDelay: 1000,
     staleTime: Infinity,
   });
 
@@ -179,6 +180,7 @@ export default function HomeCpuChart() {
     setDynamicTitle,
     firstLoad,
     setRightCornerElement,
+    error,
   ]);
 
   const options: ApexCharts.ApexOptions = {

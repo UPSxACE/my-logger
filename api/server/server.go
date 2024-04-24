@@ -35,8 +35,7 @@ type Server struct {
 func NewServer(devMode bool) *Server {
 	e := echo.New()
 
-	// Essential Middleware
-	e.Use(middleware.Logger())
+	e.Use(middleware.RequestLoggerWithConfig(Logger))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins:     []string{os.Getenv("CORS_ORIGIN")},

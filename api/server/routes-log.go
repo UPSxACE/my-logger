@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/UPSxACE/my-logger/api/db"
@@ -54,6 +56,67 @@ func (s *Server) postLogMachine(c echo.Context) error {
 	// update realtime stats asynchronously
 	go func() {
 		s.realTimeStatsSubject.ProcessLog(resourceLog)
+	}()
+
+	return c.NoContent(http.StatusOK)
+}
+
+type FluentBitLog struct {
+	LogJsonString string `json:"log"`
+}
+
+func (s *Server) postLogApp(c echo.Context) error {
+	ctx := c.Request().Context()
+	// verify header
+	apiKey := c.Request().Header.Get("X-Api-Key")
+	result := s.Collections.ApiKeys.FindOne(ctx, bson.M{
+		"value":      apiKey,
+		"revoked_at": nil,
+	})
+	if result.Err() != nil {
+		return echo.ErrUnauthorized
+	}
+
+	body_arr := []FluentBitLog{}
+
+	err := c.Bind(&body_arr)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+
+	go func() {
+		// asynchronously save logs
+		logs := []any{}
+		for _, log := range body_arr {
+			jsonLog := make(map[string]any)
+			err := json.Unmarshal([]byte(log.LogJsonString), &jsonLog)
+			if err != nil {
+				c.Logger().Error(err)
+				continue
+			}
+
+			// register who sent this log
+			jsonLog["_by"] = apiKey
+
+			// convert cookie to key:value format
+			if jsonLog["request_Cookie"] != nil {
+				header := http.Header{}
+				cookieStr, ok := jsonLog["request_Cookie"].(string)
+				if ok {
+					header.Add("Cookie", cookieStr)
+					mockReq := http.Request{Header: header}
+					cookies := mockReq.Cookies()
+					transformedCookieObj := map[string]string{}
+					for _, cookie := range cookies {
+						transformedCookieObj[cookie.Name] = cookie.Value
+					}
+					jsonLog["request_Cookie"] = transformedCookieObj
+				}
+			}
+
+			logs = append(logs, jsonLog)
+		}
+		s.Collections.RequestsLog.InsertMany(context.Background(), logs)
 	}()
 
 	return c.NoContent(http.StatusOK)

@@ -58,7 +58,7 @@ func (s *Server) setRoutes(devMode bool) {
 	// NOTE: auth by x-api-key header, not jwt
 	routeLogPrivate := s.router.Group("/api/log")
 	routeLogPrivate.POST("/machine", s.postLogMachine)
-	routeLogPrivate.POST("/app", s.postLogMachine)
+	routeLogPrivate.POST("/app", s.postLogApp)
 
 	// SECTION - Moderation Routes
 }

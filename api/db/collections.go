@@ -11,6 +11,7 @@ type Collections struct {
 	ApiKeys             *mongo.Collection
 	Apps                *mongo.Collection
 	ResourcesLog        *mongo.Collection
+	RequestsLog         *mongo.Collection
 	AnalyticsCollection *mongo.Collection
 }
 

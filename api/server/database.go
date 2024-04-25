@@ -44,6 +44,7 @@ func (s *Server) setupDatabase(devMode bool) {
 	machinesCollection := client.Database(dbName).Collection("machines")
 	appsCollection := client.Database(dbName).Collection("apps")
 	resourcesLogCollection := client.Database(dbName).Collection("resources-logs")
+	requestsLogCollection := client.Database(dbName).Collection("requests-logs")
 	analyticsCollection := client.Database(dbName).Collection("analytics")
 
 	s.Collections = db.Collections{
@@ -55,6 +56,7 @@ func (s *Server) setupDatabase(devMode bool) {
 		Machines:            machinesCollection,
 		Apps:                appsCollection,
 		ResourcesLog:        resourcesLogCollection,
+		RequestsLog:         requestsLogCollection,
 		AnalyticsCollection: analyticsCollection,
 	}
 

@@ -17,9 +17,7 @@ import {
 export default function HomeCpuChart() {
   const [selectedMachine, setSelectedMachine] = useState<null | string>(null);
   const [dynamicTitle, setDynamicTitle] = useContext(DynamicTitleContext);
-  const [rightCornerElement, setRightCornerElement] = useContext(
-    DynamicRightCornerContext,
-  );
+  const [_, setRightCornerElement] = useContext(DynamicRightCornerContext);
 
   const { socket, connected, error } = useContext(SocketContext);
 
@@ -166,7 +164,7 @@ export default function HomeCpuChart() {
 
     return () => {
       if (connected && socket) {
-        socket.emit("chart1:stop-listening", null);
+        socket.emit("realtime:recentusage:stoplistening", null);
       }
       socket?.off("realtime:recentusage:fullupdate", updateChartFull);
       socket?.off("realtime:recentusage:partialupdate", updateChartPartial);
@@ -281,10 +279,7 @@ export default function HomeCpuChart() {
   return (
     <>
       {(notReady || firstLoad) && (
-        <div
-          key={0}
-          className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8 opacity-100"
-        >
+        <div className="flex h-full flex-col items-center justify-center gap-3 px-4 py-8 opacity-100">
           <Loader />
         </div>
       )}

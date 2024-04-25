@@ -19,7 +19,10 @@ func (s *Server) postAnalytics(c echo.Context) error {
 	if body["_host"] != nil && body["_path"] != nil {
 		go func() {
 			// save analytics log asynchronously
-			s.Collections.AnalyticsCollection.InsertOne(context.Background(), body)
+			_, err := s.Collections.AnalyticsCollection.InsertOne(context.Background(), body)
+			if err == nil {
+				s.realTimeStatsSubject.ProcessAnalyticsLog(body)
+			}
 		}()
 	}
 

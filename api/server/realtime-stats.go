@@ -2,19 +2,20 @@ package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/UPSxACE/my-logger/api/db"
+	"github.com/UPSxACE/my-logger/api/utils"
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// type ProcessedResourcesLog struct {
-// }
-
+// ANCHOR - RecentUsage
 type RecentCpuUsageLog struct {
 	Time     time.Time
 	CpuUsage int
@@ -83,43 +84,101 @@ func (rs *RecentUsageCircularBuffer) GetAll() []*RecentUsageStats {
 	return data
 }
 
-type RequestsCounters struct {
-	AuthenticatedCount int
-	GuestCount         int
-}
+type Visitors = utils.Set[string] // unique client ip addresses across all apps
 
+// ANCHOR - General/global stats
 type GeneralStats struct {
-	Machines         int
-	TotalMachineLogs int
-	Apps             int
-	TotalAppLogs     int
+	TotalVisitors int // should reflect a Visitors struct .Count() at all times
+	MachineLogs   int
+	RequestLogs   int
+	AnalyticsLogs int
 }
 
-// TODO use channel to message subecribers?
-// TODO use mutex on write/read workers, and maybe subscriber buffers (???)
+// ANCHOR - Request stats (by machine)
+type RequestsCounters struct {
+	AuthenticatedCount map[machineId]int
+	GuestCount         map[machineId]int
+}
 
 // NOTE: I decided to use Observer pattern, because I want to notify every user connected
 // with websockets when an update happens.
 type RealtimeStatsSubject struct {
 	mu          sync.Mutex
 	subscribers []RealtimeStatsObserver
+	// --
 	// should lock the subject struct before giving data to the new subscriber
-	RecentUsage     map[machineId]*RecentUsageCircularBuffer
-	GeneralStats    GeneralStats
-	MostApiRequests map[machineId]int
-	TotalRequests   RequestsCounters
-	Config          RealtimeConfig
+	visitors      Visitors
+	RecentUsage   map[machineId]*RecentUsageCircularBuffer
+	GeneralStats  GeneralStats
+	MostRequests  map[machineId]int
+	TotalRequests RequestsCounters
+	Config        RealtimeConfig
+	// batched updates
+	KeepRunningBatchUpdates bool
+	nextGeneralStatsUpdate  *GeneralStatsUpdate
+	nextMostRequestsUpdate  *MostRequestsUpdate
+	nextTotalRequestsUpdate *TotalRequestsUpdate
+}
+
+func (rss *RealtimeStatsSubject) RunBatchUpdatesChecker() {
+	go func() {
+		for rss.KeepRunningBatchUpdates {
+			rss.mu.Lock()
+			notify := false
+			realtimeUpdate := &RealtimeUpdate{}
+			if rss.nextGeneralStatsUpdate != nil {
+				notify = true
+				realtimeUpdate.GeneralStatsUpdate = rss.nextGeneralStatsUpdate
+				rss.nextGeneralStatsUpdate = nil
+			}
+			if rss.nextMostRequestsUpdate != nil {
+				notify = true
+				realtimeUpdate.MostRequestsUpdate = rss.nextMostRequestsUpdate
+				rss.nextMostRequestsUpdate = nil
+			}
+			if rss.nextTotalRequestsUpdate != nil {
+				notify = true
+				realtimeUpdate.TotalRequestsUpdate = rss.nextTotalRequestsUpdate
+				rss.nextTotalRequestsUpdate = nil
+			}
+			rss.mu.Unlock()
+
+			if notify {
+				rss.notify(*realtimeUpdate)
+			}
+
+			time.Sleep(5 * time.Second)
+		}
+	}()
 }
 
 func (s *Server) setupRealtimeStatsSubject() {
-	realtimeSubject := &RealtimeStatsSubject{}
+	realtimeSubject := &RealtimeStatsSubject{KeepRunningBatchUpdates: true}
+	// initialize fields
 	realtimeSubject.RecentUsage = map[machineId]*RecentUsageCircularBuffer{}
 	realtimeSubject.GeneralStats = GeneralStats{}
+	realtimeSubject.TotalRequests = RequestsCounters{
+		AuthenticatedCount: map[string]int{},
+		GuestCount:         map[string]int{},
+	}
+	realtimeSubject.MostRequests = map[string]int{}
+	realtimeSubject.visitors = utils.NewSet[string]()
+	realtimeSubject.GeneralStats.TotalVisitors = 0
 	realtimeSubject.Config = s.LoadRealtimeConfig()
 
+	// context
+	ctx := context.Background()
+
+	// Analytics is the only one that is more straightforward to just do a count instead of processing
+	count, err := s.Collections.AnalyticsCollection.CountDocuments(ctx, echo.Map{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	realtimeSubject.GeneralStats.AnalyticsLogs = int(count)
+
+	// SETUP RECENT USAGE
 	// get all machines
 	// for each machine, get their last 100 logs and create a RecentUsageCircularBuffer for it and push it to the subject Buffers
-	ctx := context.Background()
 	result, err := s.Collections.Machines.Find(ctx, bson.M{"deleted": false})
 	if err != nil {
 		log.Fatal(err)
@@ -133,6 +192,7 @@ func (s *Server) setupRealtimeStatsSubject() {
 	for _, machine := range machines {
 		id := machine.ID.Hex()
 		realtimeSubject.RecentUsage[id] = NewResourcesCircularBuffer()
+		realtimeSubject.MostRequests[id] = 0
 
 		result, err := s.Collections.ResourcesLog.Find(ctx, bson.M{
 			"machine_id": machine.ID,
@@ -154,22 +214,30 @@ func (s *Server) setupRealtimeStatsSubject() {
 		}
 	}
 
-	// set general stats
-	realtimeSubject.GeneralStats.Machines = len(machines)
-	count, err := s.Collections.ResourcesLog.CountDocuments(ctx, echo.Map{})
+	// SETUP GENERAL STATS (and visitors)
+	// AND MOST API REQUESTS AND TOTAL REQUESTS
+	cursor, err := s.Collections.RequestsLog.Find(ctx, echo.Map{},
+		options.Find().SetProjection(echo.Map{
+			"ClientAddr":     1,
+			"_machine_id":    1,
+			"request_Cookie": 1,
+		}))
 	if err != nil {
 		log.Fatal(err)
 	}
-	realtimeSubject.GeneralStats.TotalMachineLogs = int(count)
-	count, err = s.Collections.Apps.CountDocuments(ctx, bson.M{"deleted": false})
+	requestLogs := []db.RequestLog{}
+	err = cursor.All(ctx, &requestLogs)
 	if err != nil {
 		log.Fatal(err)
 	}
-	realtimeSubject.GeneralStats.Apps = int(count)
-	// NOTE: all below on process app log probs
-	// FIXME count app logs
-	// FIXME count api request on logs by machine
-	// FIXME count session guest on logs
+
+	// Process log request logs
+	for _, rlog := range requestLogs {
+		realtimeSubject.ProcessRequestLog(rlog)
+	}
+
+	// start running batch updates checker
+	realtimeSubject.RunBatchUpdatesChecker()
 
 	// set buffers on the server instance
 	s.realTimeStatsSubject = realtimeSubject
@@ -194,6 +262,23 @@ func (rss *RealtimeStatsSubject) Unsubscribe(observerId ObserverId) {
 		}
 	}
 }
+func (rss *RealtimeStatsSubject) NewMachine(machineId string) {
+	rss.mu.Lock()
+	defer rss.mu.Unlock()
+
+	rss.RecentUsage[machineId] = NewResourcesCircularBuffer()
+	rss.MostRequests[machineId] = 0
+	rss.TotalRequests.AuthenticatedCount[machineId] = 0
+	rss.TotalRequests.GuestCount[machineId] = 0
+
+	rss.nextMostRequestsUpdate = &MostRequestsUpdate{
+		NewCounters: rss.MostRequests,
+	}
+	rss.nextTotalRequestsUpdate = &TotalRequestsUpdate{
+		NewCounters: rss.TotalRequests,
+	}
+	// NOTE: there is no need to notify configuration update, because the machine by default is not being tracked anyways
+}
 
 func (rss *RealtimeStatsSubject) ProcessLog(log *db.ResourcesLog) {
 	rss.mu.Lock()
@@ -216,6 +301,15 @@ func (rss *RealtimeStatsSubject) ProcessLog(log *db.ResourcesLog) {
 	}
 
 	rss.RecentUsage[log.MachineId.Hex()].push(recentUsageStats)
+
+	// increment general stats counter
+	rss.GeneralStats.MachineLogs += 1
+
+	// create update objects and notify
+	rss.nextGeneralStatsUpdate = &GeneralStatsUpdate{
+		NewStats: rss.GeneralStats,
+	}
+
 	update := RecentUsageUpdate{
 		MachineId: log.MachineId.Hex(),
 		UsageStats: RecentUsageStats{
@@ -229,6 +323,62 @@ func (rss *RealtimeStatsSubject) ProcessLog(log *db.ResourcesLog) {
 	})
 }
 
+func (rss *RealtimeStatsSubject) ProcessRequestLog(rlog db.RequestLog) {
+	rss.mu.Lock()
+	defer rss.mu.Unlock()
+
+	if rlog["ClientAddr"] != nil {
+		ip, ok := rlog["ClientAddr"].(string)
+		if !ok {
+			fmt.Println(errors.New("failed converting ClientAddr to string"))
+		}
+		rss.visitors.Add(ip)
+		rss.GeneralStats.TotalVisitors = rss.visitors.Count()
+		rss.GeneralStats.RequestLogs += 1
+		rss.MostRequests[ip] += 1
+
+		if rlog["request_Cookie"] != nil {
+			cookies, ok := rlog["request_Cookie"].(map[string]any)
+			if ok {
+				_, ok := cookies["next-auth.session-token"]
+				if ok {
+					rss.TotalRequests.AuthenticatedCount[ip] += 1
+				}
+				if !ok {
+					rss.TotalRequests.GuestCount[ip] += 1
+				}
+			}
+			if !ok {
+				rss.TotalRequests.GuestCount[ip] += 1
+			}
+		}
+		if rlog["request_Cookie"] == nil {
+			rss.TotalRequests.GuestCount[ip] += 1
+		}
+	}
+
+	// make update objects
+	rss.nextGeneralStatsUpdate = &GeneralStatsUpdate{
+		NewStats: rss.GeneralStats,
+	}
+	rss.nextMostRequestsUpdate = &MostRequestsUpdate{
+		NewCounters: rss.MostRequests,
+	}
+	rss.nextTotalRequestsUpdate = &TotalRequestsUpdate{
+		NewCounters: rss.TotalRequests,
+	}
+}
+
+func (rss *RealtimeStatsSubject) ProcessAnalyticsLog(alog db.Analytics) {
+	rss.mu.Lock()
+	defer rss.mu.Unlock()
+
+	rss.GeneralStats.AnalyticsLogs += 1
+	rss.nextGeneralStatsUpdate = &GeneralStatsUpdate{
+		NewStats: rss.GeneralStats,
+	}
+}
+
 type RecentUsageUpdate struct {
 	MachineId  machineId
 	UsageStats RecentUsageStats
@@ -236,9 +386,8 @@ type RecentUsageUpdate struct {
 type GeneralStatsUpdate struct {
 	NewStats GeneralStats
 }
-type MostApiRequestsUpdate struct {
-	MachineId machineId
-	NewCount  int
+type MostRequestsUpdate struct {
+	NewCounters map[machineId]int
 }
 type TotalRequestsUpdate struct {
 	NewCounters RequestsCounters
@@ -246,11 +395,11 @@ type TotalRequestsUpdate struct {
 type ConfigUpdate struct{}
 
 type RealtimeUpdate struct {
-	RecentUsageUpdate     *RecentUsageUpdate
-	GeneralStatsUpdate    *GeneralStatsUpdate
-	MostApiRequestsUpdate *MostApiRequestsUpdate
-	TotalRequestsUpdate   *TotalRequestsUpdate
-	ConfigUpdate          *ConfigUpdate
+	RecentUsageUpdate   *RecentUsageUpdate
+	GeneralStatsUpdate  *GeneralStatsUpdate
+	MostRequestsUpdate  *MostRequestsUpdate
+	TotalRequestsUpdate *TotalRequestsUpdate
+	ConfigUpdate        *ConfigUpdate
 }
 
 func (rss *RealtimeStatsSubject) NotifyConfigChange() {

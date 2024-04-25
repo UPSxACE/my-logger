@@ -1,9 +1,7 @@
 package server
 
 import (
-	"context"
 	"net/http"
-	"time"
 
 	"github.com/UPSxACE/my-logger/api/db"
 	"github.com/labstack/echo/v4"
@@ -16,7 +14,6 @@ type AppDto struct {
 	Name    string       `json:"name" bson:"name"`
 	URL     string       `json:"url" bson:"url"`
 	Machine []db.Machine `json:"machine" bson:"machine"`
-	ApiKey  []db.ApiKey  `json:"api_key" bson:"api_key"`
 }
 
 func (s *Server) getApps(c echo.Context) error {
@@ -24,22 +21,23 @@ func (s *Server) getApps(c echo.Context) error {
 
 	apps := []AppDto{}
 
+	// findResult, err := s.Collections.Apps.Find(ctx, echo.Map{"deleted": false})
+	// if err != nil {
+	// 	c.Logger().Error(err)
+	// 	return echo.ErrInternalServerError
+	// }
+	// err = findResult.All(ctx, &apps)
+
 	// find and populate data
 	firstStage := bson.M{"$match": bson.M{"deleted": false}}
 	secondStage := bson.M{"$lookup": bson.M{
-		"from":         "api-keys",
-		"localField":   "current_api_key_id",
-		"foreignField": "_id",
-		"as":           "api_key",
-	}}
-	thirdStage := bson.M{"$lookup": bson.M{
 		"from":         "machines",
 		"localField":   "machine_id",
 		"foreignField": "_id",
 		"as":           "machine",
 	}}
 
-	cursor, err := s.Collections.Apps.Aggregate(ctx, bson.A{firstStage, secondStage, thirdStage})
+	cursor, err := s.Collections.Apps.Aggregate(ctx, bson.A{firstStage, secondStage})
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
@@ -96,83 +94,95 @@ func (s *Server) postApps(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	// Create and save a new api key
-	newApiKeyGenerated, err := generateAPIKey(32)
-	if err != nil {
-		c.Logger().Error(err)
-		return echo.ErrInternalServerError
-	}
+	// // Create and save a new api key
+	// newApiKeyGenerated, err := generateAPIKey(32)
+	// if err != nil {
+	// 	c.Logger().Error(err)
+	// 	return echo.ErrInternalServerError
+	// }
 
-	newApiKey := &db.ApiKey{
-		ID:          primitive.NewObjectID(),
-		TypeOfToken: "app",
-		CreatedAt:   primitive.NewDateTimeFromTime(time.Now()),
-		Deleted:     false,
-		Value:       newApiKeyGenerated,
-	}
+	// newApiKey := &db.ApiKey{
+	// 	ID:          primitive.NewObjectID(),
+	// 	TypeOfToken: "app",
+	// 	CreatedAt:   primitive.NewDateTimeFromTime(time.Now()),
+	// 	Deleted:     false,
+	// 	Value:       newApiKeyGenerated,
+	// }
 
-	sResult, err := s.Collections.ApiKeys.InsertOne(ctx, newApiKey, nil)
-	if err != nil {
-		c.Logger().Error(err)
-		return echo.ErrInternalServerError
-	}
+	// sResult, err := s.Collections.ApiKeys.InsertOne(ctx, newApiKey, nil)
+	// if err != nil {
+	// 	c.Logger().Error(err)
+	// 	return echo.ErrInternalServerError
+	// }
 
-	apiKeyId, ok := sResult.InsertedID.(primitive.ObjectID)
-	if !ok {
-		c.Logger().Error(err)
-		return echo.ErrInternalServerError
-	}
+	// apiKeyId, ok := sResult.InsertedID.(primitive.ObjectID)
+	// if !ok {
+	// 	c.Logger().Error(err)
+	// 	return echo.ErrInternalServerError
+	// }
 
 	// Create app
 	newApp := &db.App{
-		ID:              primitive.NewObjectID(),
-		Name:            body.Name,
-		Url:             body.Url,
-		MachineId:       machine.ID,
-		CurrentApiKeyId: apiKeyId,
-		Deleted:         false,
+		ID:        primitive.NewObjectID(),
+		Name:      body.Name,
+		Url:       body.Url,
+		MachineId: machine.ID,
+		Deleted:   false,
 	}
 
-	sResult, err = s.Collections.Apps.InsertOne(ctx, newApp, nil)
+	sResult, err := s.Collections.Apps.InsertOne(ctx, newApp, nil)
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
-	firstStage := bson.M{"$match": bson.M{"_id": sResult.InsertedID, "deleted": false}}
-	secondStage := bson.M{"$lookup": bson.M{
-		"from":         "api-keys",
-		"localField":   "current_api_key_id",
-		"foreignField": "_id",
-		"as":           "api_key",
-	}}
-	thirdStage := bson.M{"$lookup": bson.M{
-		"from":         "machines",
-		"localField":   "machine_id",
-		"foreignField": "_id",
-		"as":           "machine",
-	}}
+	findResult := s.Collections.Apps.FindOne(ctx, echo.Map{"_id": sResult.InsertedID})
+	if findResult.Err() != nil {
+		c.Logger().Error(err)
+		return echo.ErrInternalServerError
+	}
 
-	cursor, err := s.Collections.Apps.Aggregate(ctx, bson.A{firstStage, secondStage, thirdStage})
+	insertedApp := &AppDto{}
+	err = findResult.Decode(insertedApp)
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError
 	}
 
-	var insertedApp AppDto
-	next := cursor.Next(ctx)
-	if !next {
-		c.Logger().Error(err)
-		return echo.ErrInternalServerError
-	}
-	if err := cursor.Decode(&insertedApp); err != nil {
-		c.Logger().Error(err)
-		return echo.ErrInternalServerError
-	}
-	if err := cursor.Err(); err != nil {
-		c.Logger().Error(err)
-		return echo.ErrInternalServerError
-	}
+	// firstStage := bson.M{"$match": bson.M{"_id": sResult.InsertedID, "deleted": false}}
+	// secondStage := bson.M{"$lookup": bson.M{
+	// 	"from":         "api-keys",
+	// 	"localField":   "current_api_key_id",
+	// 	"foreignField": "_id",
+	// 	"as":           "api_key",
+	// }}
+	// thirdStage := bson.M{"$lookup": bson.M{
+	// 	"from":         "machines",
+	// 	"localField":   "machine_id",
+	// 	"foreignField": "_id",
+	// 	"as":           "machine",
+	// }}
+
+	// cursor, err := s.Collections.Apps.Aggregate(ctx, bson.A{firstStage, secondStage, thirdStage})
+	// if err != nil {
+	// 	c.Logger().Error(err)
+	// 	return echo.ErrInternalServerError
+	// }
+
+	// var insertedApp AppDto
+	// next := cursor.Next(ctx)
+	// if !next {
+	// 	c.Logger().Error(err)
+	// 	return echo.ErrInternalServerError
+	// }
+	// if err := cursor.Decode(&insertedApp); err != nil {
+	// 	c.Logger().Error(err)
+	// 	return echo.ErrInternalServerError
+	// }
+	// if err := cursor.Err(); err != nil {
+	// 	c.Logger().Error(err)
+	// 	return echo.ErrInternalServerError
+	// }
 
 	return c.JSON(http.StatusOK, insertedApp)
 }
@@ -202,30 +212,30 @@ func (s *Server) deleteApps(c echo.Context) error {
 		return echo.ErrNotFound
 	}
 
-	// asynchronously revoke the current key of the deleted document
-	go func() {
-		ctx := context.Background()
+	// // asynchronously revoke the current key of the deleted document
+	// go func() {
+	// 	ctx := context.Background()
 
-		res := s.Collections.Apps.FindOne(ctx, bson.M{
-			"_id": objId,
-		})
-		if err := res.Err(); err != nil {
-			c.Logger().Error(err)
-			return
-		}
+	// 	res := s.Collections.Apps.FindOne(ctx, bson.M{
+	// 		"_id": objId,
+	// 	})
+	// 	if err := res.Err(); err != nil {
+	// 		c.Logger().Error(err)
+	// 		return
+	// 	}
 
-		app := &db.App{}
-		err := res.Decode(app)
-		if err != nil {
-			c.Logger().Error(err)
-			return
-		}
+	// 	app := &db.App{}
+	// 	err := res.Decode(app)
+	// 	if err != nil {
+	// 		c.Logger().Error(err)
+	// 		return
+	// 	}
 
-		err = s.revokeApiKey(ctx, app.CurrentApiKeyId)
-		if err != nil {
-			c.Logger().Error(err)
-		}
-	}()
+	// 	err = s.revokeApiKey(ctx, app.CurrentApiKeyId)
+	// 	if err != nil {
+	// 		c.Logger().Error(err)
+	// 	}
+	// }()
 
 	return c.NoContent(http.StatusOK)
 }

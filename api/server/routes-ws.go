@@ -15,16 +15,18 @@ type Message struct {
 }
 
 type ConnectionSubscription struct {
-	id                       string
-	mu                       sync.Mutex
-	ws                       *websocket.Conn
-	realtimeStatsConfig      RealtimeConfig
-	connected                bool
-	listeningRecentUsage     bool
-	listeningGeneralStats    bool
-	listeningMostApiRequests bool
-	listeningTotalRequests   bool
-	workerErr                error
+	id                   string
+	mu                   sync.Mutex
+	ws                   *websocket.Conn
+	realtimeStatsConfig  RealtimeConfig
+	connected            bool
+	listeningRecentUsage bool
+	// NOTE: for now the others are always sent anyways, because their size is smaller,
+	// and I am not worried about it
+	// listeningGeneralStats    bool
+	// listeningMostRequests bool
+	// listeningTotalRequests   bool
+	workerErr error
 }
 
 func (cs *ConnectionSubscription) GetId() string {
@@ -60,10 +62,43 @@ func (cs *ConnectionSubscription) ReceiveUpdate(update RealtimeUpdate) {
 		cs.WriteTextMessage(msg)
 	}
 	if update.GeneralStatsUpdate != nil {
-		//FIXME
+		msg, err := json.Marshal(&Message{
+			Name: "realtime:generalstats:update",
+			Data: echo.Map{
+				"total_visitors":       update.GeneralStatsUpdate.NewStats.TotalVisitors,
+				"total_machine_logs":   update.GeneralStatsUpdate.NewStats.MachineLogs,
+				"total_analytics_logs": update.GeneralStatsUpdate.NewStats.AnalyticsLogs,
+				"total_request_logs":   update.GeneralStatsUpdate.NewStats.RequestLogs,
+			},
+		})
+		if err != nil {
+			cs.workerErr = err
+			cs.connected = false
+			return
+		}
+		cs.WriteTextMessage(msg)
 	}
-	if update.MostApiRequestsUpdate != nil {
-		//FIXME
+	if update.MostRequestsUpdate != nil {
+		filtered := map[string]int{}
+
+		for machineId, count := range update.MostRequestsUpdate.NewCounters {
+			for _, machineId_ := range cs.realtimeStatsConfig.RealtimeUsageMachinesToTrack {
+				if machineId == machineId_ {
+					filtered[machineId] = count
+				}
+			}
+		}
+
+		msg, err := json.Marshal(&Message{
+			Name: "realtime:mostrequests:update",
+			Data: filtered,
+		})
+		if err != nil {
+			cs.workerErr = err
+			cs.connected = false
+			return
+		}
+		cs.WriteTextMessage(msg)
 	}
 	if update.RecentUsageUpdate != nil && cs.listeningRecentUsage {
 		for _, id := range cs.realtimeStatsConfig.RealtimeUsageMachinesToTrack {
@@ -93,7 +128,19 @@ func (cs *ConnectionSubscription) ReceiveUpdate(update RealtimeUpdate) {
 		}
 	}
 	if update.TotalRequestsUpdate != nil {
-		//FIXME
+		msg, err := json.Marshal(&Message{
+			Name: "realtime:totalrequests:update",
+			Data: echo.Map{
+				"authenticated": update.TotalRequestsUpdate.NewCounters.AuthenticatedCount,
+				"guest":         update.TotalRequestsUpdate.NewCounters.GuestCount,
+			},
+		})
+		if err != nil {
+			cs.workerErr = err
+			cs.connected = false
+			return
+		}
+		cs.WriteTextMessage(msg)
 	}
 }
 
@@ -106,14 +153,16 @@ func (s *Server) getWs(c echo.Context) error {
 
 	// connection state
 	connectionSubscription := &ConnectionSubscription{
-		id:                       utils.GenerateUuid(),
-		ws:                       ws,
-		connected:                true,
-		realtimeStatsConfig:      s.realTimeStatsSubject.Config,
-		listeningRecentUsage:     false,
-		listeningGeneralStats:    false,
-		listeningMostApiRequests: false,
-		listeningTotalRequests:   false,
+		id:                   utils.GenerateUuid(),
+		ws:                   ws,
+		connected:            true,
+		realtimeStatsConfig:  s.realTimeStatsSubject.Config,
+		listeningRecentUsage: false,
+		// NOTE: for now the others are always sent anyways, because their size is smaller,
+		// and I am not worried about it
+		// listeningGeneralStats:    false,
+		// listeningMostRequests: false,
+		// listeningTotalRequests:   false,
 	}
 
 	s.realTimeStatsSubject.Subscribe(connectionSubscription)
@@ -199,8 +248,61 @@ func (s *Server) getWs(c echo.Context) error {
 
 					connectionSubscription.WriteTextMessage(msg)
 					return
+
+				case "realtime:totalrequests:start":
+					msg, err := json.Marshal(&Message{
+						Name: "realtime:totalrequests:update",
+						Data: echo.Map{"authenticated": s.realTimeStatsSubject.TotalRequests.AuthenticatedCount,
+							"guest": s.realTimeStatsSubject.TotalRequests.GuestCount,
+						},
+					})
+					if err != nil {
+						connectionSubscription.workerErr = err
+						connectionSubscription.connected = false
+						return
+					}
+					connectionSubscription.WriteTextMessage(msg)
+				case "realtime:mostrequests:start":
+					filtered := map[string]int{}
+
+					for machineId, count := range s.realTimeStatsSubject.MostRequests {
+						for _, machineId_ := range s.realTimeStatsSubject.Config.RealtimeUsageMachinesToTrack {
+							if machineId == machineId_ {
+								filtered[machineId] = count
+							}
+						}
+					}
+
+					msg, err := json.Marshal(&Message{
+						Name: "realtime:mostrequests:update",
+						Data: filtered,
+					})
+					if err != nil {
+						connectionSubscription.workerErr = err
+						connectionSubscription.connected = false
+						return
+					}
+					connectionSubscription.WriteTextMessage(msg)
+				case "realtime:generalstats:start":
+					msg, err := json.Marshal(&Message{
+						Name: "realtime:generalstats:update",
+						Data: echo.Map{
+							"total_visitors":       s.realTimeStatsSubject.GeneralStats.TotalVisitors,
+							"total_machine_logs":   s.realTimeStatsSubject.GeneralStats.MachineLogs,
+							"total_analytics_logs": s.realTimeStatsSubject.GeneralStats.AnalyticsLogs,
+							"total_request_logs":   s.realTimeStatsSubject.GeneralStats.RequestLogs,
+						},
+					})
+					if err != nil {
+						connectionSubscription.workerErr = err
+						connectionSubscription.connected = false
+						return
+					}
+					connectionSubscription.WriteTextMessage(msg)
+				case "realtime:recentusage:stoplistening":
+					connectionSubscription.listeningRecentUsage = false
 				}
-				//FIXME case stop
+
 			}
 		}()
 	}

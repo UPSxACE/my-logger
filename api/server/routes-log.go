@@ -16,9 +16,8 @@ func (s *Server) postLogMachine(c echo.Context) error {
 	// verify header
 	apiKey := c.Request().Header.Get("X-Api-Key")
 	result := s.Collections.ApiKeys.FindOne(ctx, bson.M{
-		"type_of_token": "machine",
-		"value":         apiKey,
-		"revoked_at":    nil,
+		"value":      apiKey,
+		"revoked_at": nil,
 	})
 	if result.Err() != nil {
 		return echo.ErrUnauthorized
@@ -31,14 +30,6 @@ func (s *Server) postLogMachine(c echo.Context) error {
 		return echo.ErrInternalServerError
 	}
 
-	machineDocument := &db.Machine{}
-	result = s.Collections.Machines.FindOne(ctx, bson.M{"current_api_key_id": apiKeyDocument.ID})
-	err = result.Decode(machineDocument)
-	if err != nil {
-		c.Logger().Error(err)
-		return echo.ErrInternalServerError
-	}
-
 	resourceLog := &db.ResourcesLog{}
 	err = c.Bind(resourceLog)
 	if err != nil {
@@ -46,7 +37,7 @@ func (s *Server) postLogMachine(c echo.Context) error {
 	}
 
 	resourceLog.ID = primitive.NewObjectID()
-	resourceLog.MachineId = machineDocument.ID
+	resourceLog.MachineId = apiKeyDocument.MachineId
 	_, err = s.Collections.ResourcesLog.InsertOne(ctx, resourceLog)
 	if err != nil {
 		c.Logger().Error(err)
@@ -77,9 +68,16 @@ func (s *Server) postLogApp(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
+	apiKeyDocument := &db.ApiKey{}
+	err := result.Decode(apiKeyDocument)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.ErrInternalServerError
+	}
+
 	body_arr := []FluentBitLog{}
 
-	err := c.Bind(&body_arr)
+	err = c.Bind(&body_arr)
 	if err != nil {
 		return echo.ErrBadRequest
 	}
@@ -96,7 +94,8 @@ func (s *Server) postLogApp(c echo.Context) error {
 			}
 
 			// register who sent this log
-			jsonLog["_by"] = apiKey
+			jsonLog["_apikey"] = apiKeyDocument.ID
+			jsonLog["_machine_id"] = apiKeyDocument.MachineId
 
 			// convert cookie to key:value format
 			if jsonLog["request_Cookie"] != nil {
@@ -114,9 +113,11 @@ func (s *Server) postLogApp(c echo.Context) error {
 				}
 			}
 
+			s.realTimeStatsSubject.ProcessRequestLog(jsonLog)
 			logs = append(logs, jsonLog)
 		}
 		s.Collections.RequestsLog.InsertMany(context.Background(), logs)
+
 	}()
 
 	return c.NoContent(http.StatusOK)

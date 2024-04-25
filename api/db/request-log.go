@@ -1,3 +1,3 @@
 package db
 
-type RequestLog = any
+type RequestLog = map[string]any

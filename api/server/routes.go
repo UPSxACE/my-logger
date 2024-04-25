@@ -54,6 +54,10 @@ func (s *Server) setRoutes(devMode bool) {
 	routeAppsPrivate.GET("", s.getApps)
 	routeAppsPrivate.POST("", s.postApps)
 	routeAppsPrivate.DELETE("/:id", s.deleteApps)
+	// ANCHOR - Api Keys
+	routeApiKeysPrivate := s.router.Group("/api/api-keys", s.jwtMiddleware)
+	routeApiKeysPrivate.GET("", s.getApiKeys)
+	routeApiKeysPrivate.POST("", s.postApiKeys)
 	// ANCHOR - Log
 	// NOTE: auth by x-api-key header, not jwt
 	routeLogPrivate := s.router.Group("/api/log")

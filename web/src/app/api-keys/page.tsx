@@ -8,9 +8,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useReactTable } from "@tanstack/react-table";
 import axios from "axios";
 import { useState } from "react";
-import { getAppsTableConfig } from "../_components/apps-table";
+import { getApiKeysTableConfig } from "../_components/apikeys-table";
 
-export default function AppsPage() {
+export default function ApiKeyPage() {
   const [sendingRequest, setSendingRequest] = useState(false);
 
   const {
@@ -28,26 +28,24 @@ export default function AppsPage() {
   });
 
   const { error, data, isLoading, refetch } = useQuery({
-    queryKey: ["apps"],
+    queryKey: ["api-keys"],
     queryFn: () =>
       axios
-        .get(process.env.NEXT_PUBLIC_API_URL + "/api/apps", {
+        .get(process.env.NEXT_PUBLIC_API_URL + "/api/api-keys", {
           withCredentials: true,
         })
         .then((res) => res.data),
   });
 
-  const table = useReactTable(getAppsTableConfig(data, refetch));
+  const table = useReactTable(getApiKeysTableConfig(data, refetch));
 
   const form = useForm({
     initialValues: {
       name: "",
-      url: "",
       machine_id: "",
     },
     validate: {
       name: () => null,
-      url: () => null,
       machine_id: (val) => (val.length === 0 ? "This field is required" : null),
     },
   });
@@ -55,17 +53,17 @@ export default function AppsPage() {
   const { newNotification, updateToFailed, updateToSuccess } =
     useRequestNotification();
 
-  async function handleAddApp() {
+  async function handleCreateApiKey() {
     setSendingRequest(true);
 
     const notificationId = newNotification(
-      "adding-app",
-      "Adding the app...",
+      "adding-apikey",
+      "Creating the api key...",
       "Please hold of for a second, this will be fast.",
     );
 
     axios
-      .post(process.env.NEXT_PUBLIC_API_URL + "/api/apps", form.values, {
+      .post(process.env.NEXT_PUBLIC_API_URL + "/api/api-keys", form.values, {
         withCredentials: true,
       })
       .then((res) => {
@@ -92,17 +90,19 @@ export default function AppsPage() {
     <main className="flex flex-col gap-4">
       <BasicCard className="flex flex-col !p-0 text-gray-600">
         <div className="flex flex-col gap-3 p-6">
-          <h1 className="m-0 text-2xl font-bold text-black">Add a new app</h1>
+          <h1 className="m-0 text-2xl font-bold text-black">
+            Create an Api Key
+          </h1>
           <form
-            id="add-app"
+            id="add-api-key"
             className="flex flex-col gap-4"
-            onSubmit={form.onSubmit(handleAddApp)}
+            onSubmit={form.onSubmit(handleCreateApiKey)}
           >
             <div className="flex gap-4">
               <TextInput
                 required
-                label="App name"
-                placeholder="App name"
+                label="Name"
+                placeholder="Name"
                 value={form.values.name}
                 onChange={(event) =>
                   form.setFieldValue("name", event.target.value)
@@ -138,39 +138,22 @@ export default function AppsPage() {
                 error={form.errors.machine_id}
               />
             </div>
-            <div className="flex gap-4">
-              <TextInput
-                required
-                label="URL"
-                placeholder="URL"
-                value={form.values.url}
-                onChange={(event) =>
-                  form.setFieldValue("url", event.target.value)
-                }
-                radius="sm"
-                error={form.errors.url}
-                className="flex-1"
-                classNames={{
-                  label: "mb-2 font-semibold",
-                  input: "light-input",
-                }}
-              />
-            </div>
           </form>
         </div>
         <Divider color="#00000019" />
         <div className="flex items-center p-3 px-6">
           <span className="text-sm">
-            Don&apos;t forget to add the logging code to your app&apos;s logger.
+            Don&apos;t forget to place the api key in your machine&apos;s
+            script(or your app&apos;s environment variables).
           </span>
           <Button
             type="submit"
-            form="add-app"
+            form="add-api-key"
             className="ml-auto"
             size="xs"
             loading={sendingRequest || machines_isLoading}
           >
-            Add App
+            Create
           </Button>
         </div>
       </BasicCard>

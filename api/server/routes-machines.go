@@ -138,7 +138,7 @@ func (s *Server) postMachines(c echo.Context) error {
 	}
 
 	machineId := newMachine.ID.Hex()
-	s.realTimeStatsSubject.NewMachine(machineId)
+	s.NewMachine(machineId)
 
 	// firstStage := bson.M{"$match": bson.M{"_id": result.InsertedID, "deleted": false}}
 	// secondStage := bson.M{"$lookup": bson.M{
@@ -187,6 +187,8 @@ func (s *Server) deleteMachines(c echo.Context) error {
 			"deleted": true,
 		},
 	}, nil)
+
+	s.RemoveMachine(idParam)
 
 	if err != nil {
 		c.Logger().Error(err)

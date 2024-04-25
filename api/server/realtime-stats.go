@@ -103,8 +103,9 @@ type RequestsCounters struct {
 // NOTE: I decided to use Observer pattern, because I want to notify every user connected
 // with websockets when an update happens.
 type RealtimeStatsSubject struct {
-	mu          sync.Mutex
-	subscribers []RealtimeStatsObserver
+	mu            sync.Mutex
+	subscribers   []RealtimeStatsObserver
+	dbCollections *db.Collections
 	// --
 	// should lock the subject struct before giving data to the new subscriber
 	visitors      Visitors
@@ -153,7 +154,7 @@ func (rss *RealtimeStatsSubject) RunBatchUpdatesChecker() {
 }
 
 func (s *Server) setupRealtimeStatsSubject() {
-	realtimeSubject := &RealtimeStatsSubject{KeepRunningBatchUpdates: true}
+	realtimeSubject := &RealtimeStatsSubject{KeepRunningBatchUpdates: true, dbCollections: &s.Collections}
 	// initialize fields
 	realtimeSubject.RecentUsage = map[machineId]*RecentUsageCircularBuffer{}
 	realtimeSubject.GeneralStats = GeneralStats{}
@@ -262,22 +263,32 @@ func (rss *RealtimeStatsSubject) Unsubscribe(observerId ObserverId) {
 		}
 	}
 }
-func (rss *RealtimeStatsSubject) NewMachine(machineId string) {
-	rss.mu.Lock()
-	defer rss.mu.Unlock()
+func (s *Server) NewMachine(machineId string) {
+	s.realTimeStatsSubject.mu.Lock()
+	defer s.realTimeStatsSubject.mu.Unlock()
 
-	rss.RecentUsage[machineId] = NewResourcesCircularBuffer()
-	rss.MostRequests[machineId] = 0
-	rss.TotalRequests.AuthenticatedCount[machineId] = 0
-	rss.TotalRequests.GuestCount[machineId] = 0
+	s.realTimeStatsSubject.RecentUsage[machineId] = NewResourcesCircularBuffer()
+	s.realTimeStatsSubject.MostRequests[machineId] = 0
+	s.realTimeStatsSubject.TotalRequests.AuthenticatedCount[machineId] = 0
+	s.realTimeStatsSubject.TotalRequests.GuestCount[machineId] = 0
 
-	rss.nextMostRequestsUpdate = &MostRequestsUpdate{
-		NewCounters: rss.MostRequests,
+	s.realTimeStatsSubject.nextMostRequestsUpdate = &MostRequestsUpdate{
+		NewCounters: s.realTimeStatsSubject.MostRequests,
 	}
-	rss.nextTotalRequestsUpdate = &TotalRequestsUpdate{
-		NewCounters: rss.TotalRequests,
+	s.realTimeStatsSubject.nextTotalRequestsUpdate = &TotalRequestsUpdate{
+		NewCounters: s.realTimeStatsSubject.TotalRequests,
 	}
 	// NOTE: there is no need to notify configuration update, because the machine by default is not being tracked anyways
+}
+
+func (s *Server) RemoveMachine(machineId string) {
+	for i, machineId_ := range s.realTimeStatsSubject.Config.RealtimeUsageMachinesToTrack {
+		if machineId == machineId_ {
+			newConfig := s.realTimeStatsSubject.Config
+			newConfig.RealtimeUsageMachinesToTrack = append(s.realTimeStatsSubject.Config.RealtimeUsageMachinesToTrack[:i], s.realTimeStatsSubject.Config.RealtimeUsageMachinesToTrack[i+1])
+			s.SaveRealtimeConfig(newConfig)
+		}
+	}
 }
 
 func (rss *RealtimeStatsSubject) ProcessLog(log *db.ResourcesLog) {

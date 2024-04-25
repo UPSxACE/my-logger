@@ -51,7 +51,7 @@ export const config = {
       options: {
         httpOnly: true,
         sameSite: "lax",
-        domain: "localhost",
+        domain: process.env.NEXTAUTH_COOKIE_DOMAIN,
         path: "/",
         // REVIEW secure:true
       },
@@ -98,7 +98,7 @@ export const config = {
       async authorize(credentials, req) {
         try {
           const data = await axios
-            .post(process.env.NEXT_PUBLIC_API_URL + "/api/login", credentials)
+            .post(process.env.NEXT_INTERNAL_API_URL + "/api/login", credentials)
             .then((res) => {
               return res.data;
             });

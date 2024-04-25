@@ -1,0 +1,129 @@
+services:
+  fluentbit:
+    container_name: fluentbit
+    image: fluent/fluent-bit
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - traefik_network
+    env_file:
+      - .env
+    restart: unless-stopped
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    ports:
+      - 80:80
+      # -- (Optional) Enable Dashboard, don't do in production
+      # - 8080:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # - ./config/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./config/conf/:/etc/traefik/conf/
+      - ./config/certs/:/etc/traefik/certs/
+      - ./logs/:/logs/
+    # -- (Optional) When using Cloudflare as Cert Resolver
+    # environment:
+    #   - CF_DNS_API_TOKEN=your-cloudflare-api-token
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+    networks:
+      - traefik_network
+    command:
+      # - "--api.insecure=true"
+      # - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      # - "--log.level=DEBUG"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--accesslog.fields.headers.names.X-Api-Key=keep"
+      - "--accesslog.fields.headers.names.Cookie=keep"
+      - "--accesslog.fields.names.ClientUsername=drop"
+      - "--accesslog.fields.names.entryPointName=drop"
+      - "--accesslog.fields.names.msg=drop"
+      - "--accesslog.fields.names.level=drop"
+      - "--accesslog.fields.names.StartLocal=drop"
+      - "--accesslog.fields.names.RouterName=drop"
+      - "--accesslog.fields.names.OriginDuration=drop"
+      - "--accesslog.fields.names.OriginContentSize=drop"
+      - "--accesslog.fields.names.OriginStatus=drop"
+      - "--accesslog.fields.names.OriginStatusLine=drop"
+      - "--accesslog.fields.names.Overhead=drop"
+      - "--accesslog.fields.names.RequestCount=drop"
+      - "--accesslog.fields.names.RetryAttempts=drop"
+      - "--accesslog.fields.names.GzipRatio=drop"
+      - "--accesslog.fields.names.TLSVersion=drop"
+      - "--accesslog.fields.names.TLSCipher=drop"
+      - "--accesslog.fields.names.ServiceName=drop"
+      - "--accesslog.fields.names.ServiceURL=drop"
+      - "--accesslog.fields.names.ServiceAddr=drop"
+      - "--accesslog.fields.names.ClientPort=drop"
+    logging:
+      driver: fluentd
+      options:
+        tag: traefik
+        # fluentd-address: fluent-bit:24224
+  mongo_db:
+    image: mongo:7.0.8-jammy
+    ports:
+      - "27018:27017"
+    volumes:
+      - dbdata6:/data/db
+    env_file: .env
+    networks:
+      - traefik_network
+    restart: unless-stopped
+  api:
+    container_name: api
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mongo_db
+    networks:
+      - traefik_network
+    env_file:
+      - .env
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`${API_HOSTNAME}`)
+  web:
+    container_name: web
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        - NEXTAUTH_URL=${NEXTAUTH_URL}
+        - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+        - NEXT_PUBLIC_ANALYTICS_URL=${NEXT_PUBLIC_ANALYTICS_URL}
+        - NEXT_INTERNAL_API_URL=${NEXT_INTERNAL_API_URL}
+        - NEXT_BUILD_STANDALONE=${NEXT_BUILD_STANDALONE}
+        - NEXTAUTH_COOKIE_DOMAIN=${NEXTAUTH_COOKIE_DOMAIN}
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - traefik_network
+    env_file:
+      - .env
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nextjs.rule=Host(`${WEB_HOSTNAME}`)
+networks:
+  traefik_network:
+    external: true
+
+volumes:
+  dbdata6:

@@ -7,12 +7,14 @@ import {
   AiOutlineBlock,
   AiOutlineFileText,
   AiOutlineHome,
+  AiOutlinePieChart,
 } from "react-icons/ai";
 import { GiBrassEye } from "react-icons/gi";
 import { GoChevronLeft } from "react-icons/go";
 import { GrAppsRounded } from "react-icons/gr";
 import { IoSettingsOutline } from "react-icons/io5";
 import { LiaKeySolid } from "react-icons/lia";
+import { RiBarChart2Line } from "react-icons/ri";
 import SidebarButton from "./_components/sidebar-button";
 import { AppShellContext } from "./app-shell";
 
@@ -64,6 +66,12 @@ export default function AppShellSidebar() {
           </SidebarButton>
           <SidebarButton Icon={<AiOutlineFileText />} navlink="logs">
             Logs
+          </SidebarButton>
+          <SidebarButton Icon={<AiOutlinePieChart />} navlink="resources">
+            Resources
+          </SidebarButton>
+          <SidebarButton Icon={<RiBarChart2Line />} navlink="analytics">
+            Analytics{/* Report */}
           </SidebarButton>
           <SidebarButton Icon={<LiaKeySolid />} navlink="api-keys">
             Api Keys

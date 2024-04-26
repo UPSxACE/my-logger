@@ -30,8 +30,11 @@ func (s *Server) getApiKeys(c echo.Context) error {
 		"foreignField": "_id",
 		"as":           "machine",
 	}}
+	thirdStage := bson.M{"$sort": bson.M{
+		"created_at": -1,
+	}}
 
-	cursor, err := s.Collections.ApiKeys.Aggregate(ctx, bson.A{firstStage, secondStage})
+	cursor, err := s.Collections.ApiKeys.Aggregate(ctx, bson.A{firstStage, secondStage, thirdStage})
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError

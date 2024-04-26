@@ -29,6 +29,8 @@ func (s *Server) setRoutes(devMode bool) {
 	routeAuthGuest.POST("/recover-account", s.postRecoverAccountRoute)
 
 	// SECTION - Private Routes
+	// ANCHOR - Analytics
+	s.router.GET("/api/analytics", s.getAnalytics, s.jwtMiddleware)
 	// ANCHOR - Index & Web Socket
 	routeIndexPrivate := s.router.Group("/api", s.jwtMiddleware)
 	routeIndexPrivate.GET("/ws", s.getWs)
@@ -58,7 +60,16 @@ func (s *Server) setRoutes(devMode bool) {
 	routeApiKeysPrivate := s.router.Group("/api/api-keys", s.jwtMiddleware)
 	routeApiKeysPrivate.GET("", s.getApiKeys)
 	routeApiKeysPrivate.POST("", s.postApiKeys)
+	// ANCHOR - Data
+	routeDataPrivate := s.router.Group("/api/data", s.jwtMiddleware)
+	routeDataPrivate.GET("/cpu", s.getDataCpu)
+	routeDataPrivate.GET("/ram", s.getDataRam)
+	routeDataPrivate.GET("/disk", s.getDataDisk)
+	routeDataPrivate.GET("/network", s.getDataNetwork)
 	// ANCHOR - Log
+	// NOTE: auth by jwt
+	s.router.GET("api/log/machine", s.getLogMachine, s.jwtMiddleware)
+	s.router.GET("api/log/app", s.getLogApp, s.jwtMiddleware)
 	// NOTE: auth by x-api-key header, not jwt
 	routeLogPrivate := s.router.Group("/api/log")
 	routeLogPrivate.POST("/machine", s.postLogMachine)

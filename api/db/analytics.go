@@ -1,3 +1,3 @@
-package db; 
+package db
 
-type Analytics = any;
+type Analytics = map[string]any

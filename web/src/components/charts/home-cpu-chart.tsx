@@ -74,7 +74,7 @@ export default function HomeCpuChart() {
       setRightCornerElement(function SelectMachine() {
         return (
           <Select
-            clearable={false}
+            allowDeselect={false}
             value={selectedMachine}
             onChange={(value) => {
               setFirstLoad(true);

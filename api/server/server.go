@@ -30,6 +30,7 @@ type Server struct {
 	internal             InternalState
 	emailTemplates       *template.Template
 	realTimeStatsSubject *RealtimeStatsSubject
+	cachedResourcesData  *CachedResourcesData
 }
 
 func NewServer(devMode bool) *Server {
@@ -49,6 +50,7 @@ func NewServer(devMode bool) *Server {
 	server.setupValidator()
 	server.setupDatabase(devMode)
 	server.setupRealtimeStatsSubject()
+	server.setupCachedResourcesData()
 	server.setupJwt()
 	server.setRoutes(devMode)
 	server.setupInternalState()

@@ -11,6 +11,43 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+func (s *Server) getLogMachine(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	resourceLogs := []db.ResourcesLog{}
+
+	findResult, err := s.Collections.ResourcesLog.Find(ctx, echo.Map{})
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.ErrInternalServerError
+	}
+	err = findResult.All(ctx, &resourceLogs)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.ErrInternalServerError
+	}
+
+	return c.JSON(http.StatusOK, resourceLogs)
+}
+func (s *Server) getLogApp(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	requestLogs := []db.RequestLog{}
+
+	findResult, err := s.Collections.RequestsLog.Find(ctx, echo.Map{})
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.ErrInternalServerError
+	}
+	err = findResult.All(ctx, &requestLogs)
+	if err != nil {
+		c.Logger().Error(err)
+		return echo.ErrInternalServerError
+	}
+
+	return c.JSON(http.StatusOK, requestLogs)
+}
+
 func (s *Server) postLogMachine(c echo.Context) error {
 	ctx := c.Request().Context()
 	// verify header

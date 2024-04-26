@@ -234,7 +234,7 @@ export default function HomeCpuChart() {
     },
     xaxis: {
       type: "datetime",
-      range: 30000000, // 5 minutes * 100
+      range: 5000000, // 5 seconds * 100 //30000000, // 5 minutes * 100
       // stepSize: 3000,
       // tickAmount: 100,
       tickAmount: 25,

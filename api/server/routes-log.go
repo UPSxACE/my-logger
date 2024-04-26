@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func (s *Server) getLogMachine(c echo.Context) error {
@@ -34,7 +35,7 @@ func (s *Server) getLogApp(c echo.Context) error {
 
 	requestLogs := []db.RequestLog{}
 
-	findResult, err := s.Collections.RequestsLog.Find(ctx, echo.Map{})
+	findResult, err := s.Collections.RequestsLog.Find(ctx, echo.Map{}, options.Find().SetSort(echo.Map{"time": -1}))
 	if err != nil {
 		c.Logger().Error(err)
 		return echo.ErrInternalServerError

@@ -9,114 +9,6 @@ import { RefObject } from "react";
 import ReactApexChart from "react-apexcharts";
 import useObserveRefresh from "./_hooks/use-observe-refresh";
 
-// const mockData = [
-//   {
-//     name: "XYZ MOTORS",
-//     data: [
-//       {
-//         x: "2024-04-23T17:08:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:13:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:16:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:21:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:26:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:31:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:36:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:41:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:46:49+01:00",
-//         y: 49,
-//       },
-//       {
-//         x: "2024-04-23T17:51:49+01:00",
-//         y: 75,
-//       },
-//       {
-//         x: "2024-04-23T17:56:49+01:00",
-//         y: 56,
-//       },
-//       {
-//         x: "2024-04-23T18:01:49+01:00",
-//         y: 61,
-//       },
-//       {
-//         x: "2024-04-23T18:06:49+01:00",
-//         y: 61,
-//       },
-//       {
-//         x: "2024-04-23T18:56:49+01:00",
-//         y: 61,
-//       },
-//       {
-//         x: "2024-04-23T19:46:49+01:00",
-//         y: 61,
-//       },
-//       {
-//         x: "2024-04-23T19:46:49+01:00",
-//         y: 61,
-//       },
-//       {
-//         x: "2024-04-23T20:36:49+01:00",
-//         y: 90,
-//       },
-//       {
-//         x: "2024-04-23T21:26:49+01:00",
-//         y: 90,
-//       },
-//       {
-//         x: "2024-04-23T22:16:49+01:00",
-//         y: 90,
-//       },
-//       {
-//         x: "2024-04-23T23:06:49+01:00",
-//         y: 90,
-//       },
-//       {
-//         x: "2024-04-23T23:56:49+01:00",
-//         y: 90,
-//       },
-//       {
-//         x: "2024-04-24T00:46:49+01:00",
-//         y: 90,
-//       },
-//       {
-//         x: "2024-04-24T01:36:49+01:00",
-//         y: 90,
-//       },
-//       {
-//         x: "2024-04-24T02:26:49+01:00",
-//         y: 34,
-//       },
-//       {
-//         x: "2024-04-24T03:16:49+01:00",
-//         y: 34,
-//       },
-//     ],
-//   },
-// ];
-
 export default function ResourcesDiskChart({
   refreshRef,
   timespan,
@@ -189,14 +81,24 @@ export default function ResourcesDiskChart({
                 borderRadius: 4,
                 borderRadiusApplication: "end",
                 horizontal: true,
+                colors: {
+                  backgroundBarOpacity: 1,
+                },
               },
             },
-            theme: {
-              monochrome: {
-                enabled: true,
-                color: "#504c97",
-              },
-            },
+            colors: [
+              "var(--mantine-primary-color-9)",
+              "var(--mantine-primary-color-6)",
+              "var(--mantine-primary-color-4)",
+              "var(--mantine-primary-color-2)",
+              "var(--mantine-primary-color-1)",
+            ],
+            // theme: {
+            //   monochrome: {
+            //     enabled: true,
+            //     color: "#504c97",
+            //   },
+            // },
             chart: {
               id: "disk-chart",
               type: "bar",
@@ -248,7 +150,7 @@ export default function ResourcesDiskChart({
               },
             },
           }}
-          series={data}
+          series={data?.slice(0, 5)} //FIXME
           type="bar"
           height={"100%"}
         />

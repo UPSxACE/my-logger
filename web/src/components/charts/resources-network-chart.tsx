@@ -81,14 +81,25 @@ export default function ResourcesNetworkChart({
                 borderRadius: 4,
                 borderRadiusApplication: "end",
                 horizontal: true,
+                colors: {
+                  backgroundBarOpacity: 1,
+                },
               },
             },
-            theme: {
-              monochrome: {
-                enabled: true,
-                color: "#504c97",
-              },
-            },
+            // colors: ["#3b3979", "#504c97", "#6a65b0", "#9b98ca", "#e0dff2"],
+            colors: [
+              "var(--mantine-primary-color-9)",
+              "var(--mantine-primary-color-6)",
+              "var(--mantine-primary-color-4)",
+              "var(--mantine-primary-color-2)",
+              "var(--mantine-primary-color-1)",
+            ],
+            // theme: {
+            //   monochrome: {
+            //     enabled: true,
+            //     color: "#504c97",
+            //   },
+            // },
             chart: {
               id: "network-chart",
               type: "bar",
@@ -140,7 +151,7 @@ export default function ResourcesNetworkChart({
               },
             },
           }}
-          series={data}
+          series={data?.slice(0, 5)} //FIXME
           type="bar"
           height={"100%"}
         />

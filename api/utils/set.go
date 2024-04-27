@@ -33,7 +33,9 @@ func (s *Set[T]) GetAll() []T {
 }
 
 func NewSet[T comparable]() Set[T] {
-	return Set[T]{}
+	return Set[T]{
+		data: map[T]struct{}{},
+	}
 }
 
 func NewSetWithData[T comparable](initialData []T) Set[T] {

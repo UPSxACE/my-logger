@@ -1,10 +1,10 @@
-API_ENDPOINT="http://example.com/test?token=ffff"
-API_KEY="your_api_key_here"
+API_ENDPOINT="<URL>"
+API_KEY="<APIKEY>"
 
 while true; do
-    memory_usage=$(free | awk 'NR==2{printf "%.2f", $3*100/$2}')
+    memory_usage=$(free | awk 'NR==2{printf "%.0f", $3*100/$2}')
     disk_usage=$(df -h / | awk 'NR==2{print $5}' | sed 's/%//')
-    cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
+    cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{printf "%.0f", 100 - $1}')
     network_traffic_rx=0
     network_traffic_tx=0
     # Loop through all network interfaces and sum up the RX and TX values
@@ -17,8 +17,8 @@ while true; do
 
     network_traffic="{\"rx\": $network_traffic_rx, \"tx\": $network_traffic_tx}"
     current_time=$(date +%s)  # Get current timestamp
-        
-    json_data="{\"time\": $current_time, \"memory_usage\": $memory_usage, \"disk_usage\": $disk_usage, \"cpu_usage\": $cpu_usage, \"network\": $network_traffic}"
+
+    json_data="{\"timestamp\": $current_time, \"memory_usage\": $memory_usage, \"disk_usage\": $disk_usage, \"cpu_usage\": $cpu_usage, \"network\": $network_traffic}"
     curl -X POST -H "Content-Type: application/json" -H "X-Api-Key: $API_KEY" -d "$json_data" "$API_ENDPOINT"
 
     sleep 5
